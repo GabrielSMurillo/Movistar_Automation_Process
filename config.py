@@ -143,19 +143,36 @@ FIXED_LINE_CODES = {
 # --- Códigos de Servicio por Tipo de Venta ---
 SERVICE_CODE_MAPPING = {
     'patterns': [
-        # (palabras_clave, código_movistar, código_digital, programa)
-        (['MASCOTA', 'MASCOTAS', 'PET'], '2119', '4045', 'TU MASCOTA', 'Mascotas'),
-        (['VEHICULO', 'VEHÍCULO', 'AUTO', 'CARRO'], '2120', '4046', 'TU VEHICULO', 'Vehiculo'),
-        (['HOGAR', 'CASA', 'HOME'], '2121', '4047', 'TU HOGAR', 'Hogar'),
-        (['VIAL', 'VIA'], '2119', '4045', 'VIAL', 'Vial'),
+        # (palabras_clave, código_movistar, código_digital, programa_movistar, programa_digital)
+        # ⚠️ WARNING: These are MOVIL codes only! Does NOT differentiate MOVIL vs FIJA (CRITICAL BUG)
+        # FIXED: Changed from wrong codes (2119/2120/2121) to correct MOVIL codes
+        (['MASCOTA', 'MASCOTAS', 'PET'], '3823', '4046', 'TU MASCOTA', 'Mascotas'),  # Was 2119 (WRONG!)
+        (['VEHICULO', 'VEHÍCULO', 'AUTO', 'CARRO'], '5002', '4045', 'TU VEHICULO', 'Vial'),  # Was 2120 (WRONG!)
+        (['HOGAR', 'CASA', 'HOME'], '5000', '4047', 'TU HOGAR', 'Multiasistencia'),  # Was 2121 (WRONG!)
+        (['BIENESTAR'], '2119', '4047', 'TU BIENESTAR', 'Multiasistencia'),
+        (['VIAL', 'VIA'], '4045', '4045', 'VIAL', 'Vial'),
     ],
     'default': {
-        'movistar': '2119',
-        'digital': '4045',
+        'movistar': '3823',  # TU MASCOTA MOVIL (was 2119 - WRONG!)
+        'digital': '4046',   # MASCOTAS DIGITAL (was 4045 - WRONG!)
         'programa_movistar': 'TU MASCOTA',
         'programa_digital': 'Mascotas'
     }
 }
+
+# ⚠️⚠️⚠️ CRITICAL WARNING ⚠️⚠️⚠️
+# This SERVICE_CODE_MAPPING is INCOMPLETE and should be DEPRECATED
+# It does NOT differentiate between MOVIL (mobile) and FIJA (landline)
+# 
+# CORRECT CODES PER LINE TYPE:
+# MOVIL: TU MASCOTA=3823, TU HOGAR=5000, TU VEHICULO=5002, TU BIENESTAR=2119
+# FIJA:  TU MASCOTA=15639, TU HOGAR=15641, TU VEHICULO=15642, TU BIENESTAR=15640
+# DIGITAL: MASCOTAS=4046, MULTIASISTENCIA=4047, VIAL=4045
+#
+# RECOMMENDED: Use ServiceCodeMapper from src.services instead:
+#   from src.services import ServiceCodeMapper
+#   mapper = ServiceCodeMapper()
+#   code, program = mapper.get_code(tipo_venta, tipo_linea)  # Correct!
 
 # --- Mapeo de Columnas del Tipificador ---
 TIPIFICADOR_COLS_MAP = {
