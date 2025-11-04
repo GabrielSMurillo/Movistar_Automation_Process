@@ -1,0 +1,14 @@
+pandas
+numpy
+phonenumbers
+pandera
+matplotlib
+seaborn
+python-dotenv
+openpyxl
+xlsxwriter
+pytest
+pytest-cov
+mypy
+pandas-stubs
+colorlog
