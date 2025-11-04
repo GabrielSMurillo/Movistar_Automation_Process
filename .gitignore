@@ -23,11 +23,13 @@ share/python-wheels/
 *.egg
 MANIFEST
 
-# Virtual Environment
+# Virtual environments
 venv/
-ENV/
 env/
+ENV/
 .venv
+env.bak/
+venv.bak/
 
 # IDE
 .vscode/
@@ -36,53 +38,79 @@ env/
 *.swo
 *~
 .DS_Store
+*.sublime-project
+*.sublime-workspace
 
 # Testing
 .pytest_cache/
 .coverage
+.coverage.*
 htmlcov/
 .tox/
+.nox/
+.hypothesis/
 .mypy_cache/
 .dmypy.json
 dmypy.json
+.pyre/
 
-# Data files (NO COMMIT DATOS SENSIBLES)
-data/input/*.csv
-data/input/*.xlsx
-data/input/historicos/
-data/output/
-data/processed/
-data/tracking/
-data/test_output_septiembre/
-data/validation_output/
-temp_validation_output/
+# Data files (CRITICAL - never commit data!)
+data/
+data/**/*
+!data/.gitkeep
+!data/input/.gitkeep
+!data/output/.gitkeep
+!data/processed/.gitkeep
+!data/tracking/.gitkeep
+!data/historico/.gitkeep
+*.csv
+*.xlsx
+*.xls
+*.xlsm
 
 # Logs
 logs/
+logs/**/*
+!logs/.gitkeep
 *.log
+
+# Tracking files
+tracking/
+*.db
+*.sqlite
+*.db-journal
+*.db-shm
+*.db-wal
 
 # Environment variables
 .env
 .env.local
 .env.*.local
 
-# Jupyter
-.ipynb_checkpoints/
-*.ipynb
+# Temporary files
+*.tmp
+*.bak
+*.backup
+.cache/
+temp/
+tmp/
 
 # OS
 Thumbs.db
-Desktop.ini
-
-# Backup files
-*.bak
-*.backup
+.DS_Store
+*.swp
+*.swo
 *~
 
-# Temporary Python files
-*.tmp
-.temp/
-*.so
+# Jupyter Notebooks
+.ipynb_checkpoints/
+*.ipynb
+
+# Documentation builds
+docs/_build/
+docs/.doctrees/
+
+# Distribution / packaging
 .Python
 build/
 develop-eggs/
@@ -100,36 +128,63 @@ wheels/
 .installed.cfg
 *.egg
 
-# Virtual Environment
-venv/
-ENV/
-env/
-.venv
+# PyInstaller
+*.manifest
+*.spec
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
 
-# Data files (archivos históricos y de entrada)
-data/historico/
-data/input/*.csv
+# Translations
+*.mo
+*.pot
 
-# Logs
-*.log
+# Scrapy
+.scrapy
 
-# OS
-.DS_Store
-Thumbs.db
-desktop.ini
+# Sphinx documentation
+docs/_build/
 
-# Output files (si generas archivos de salida)
-data/output/
-*.xlsx
-*.xls
+# PyBuilder
+target/
 
-# Configuración sensible
-config_local.py
-.env
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# celery
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
