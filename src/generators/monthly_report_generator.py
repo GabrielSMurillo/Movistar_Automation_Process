@@ -23,6 +23,13 @@ from datetime import datetime
 
 from src.generators.base_generator import BaseGenerator, GeneratorRegistry
 
+# ✅ Import ServiceCodeMapper for CORRECT codes
+try:
+    from src.services.service_code_mapper import ServiceCodeMapper
+    SERVICE_MAPPER_AVAILABLE = True
+except ImportError:
+    SERVICE_MAPPER_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 
@@ -170,13 +177,33 @@ class MonthlyReportGenerator(BaseGenerator):
         
         for _, row in df.iterrows():
             try:
-                # Determine COD_SERVICIO based on segment
-                if segment == 'Digital':
-                    cod_servicio = '4045'
-                    asesor = 'Digital'
+                # ✅ Determine COD_SERVICIO using ServiceCodeMapper
+                if SERVICE_MAPPER_AVAILABLE:
+                    mapper = ServiceCodeMapper()
+                    tipo_venta = str(row.get('tipo_venta', '') or row.get('programa', 'TU MASCOTA'))
+                    
+                    # Determine tipo_linea based on segment
+                    if segment == 'Digital':
+                        tipo_linea = 'DIGITAL'
+                        asesor = 'Digital'
+                    elif segment == 'Fija':
+                        tipo_linea = 'FIJA'
+                        asesor = row.get('nombre_asesor', segment)
+                    else:
+                        tipo_linea = 'MOVIL'
+                        asesor = row.get('nombre_asesor', segment)
+                    
+                    cod_servicio, programa = mapper.get_code(tipo_venta, tipo_linea)
                 else:
-                    cod_servicio = '2119'  # Default
-                    asesor = row.get('nombre_asesor', segment)
+                    # ❌ FALLBACK: Old hardcoded method
+                    if segment == 'Digital':
+                        cod_servicio = '4045'  # Default DIGITAL VIAL
+                        asesor = 'Digital'
+                        programa = 'Vial'
+                    else:
+                        cod_servicio = '3823'  # Default MOVIL TU MASCOTA (✅ CORRECTED)
+                        asesor = row.get('nombre_asesor', segment)
+                        programa = 'TU MASCOTA'
                 
                 record = {
                     'Source.Name': row.get('_archivo_origen', ''),

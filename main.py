@@ -10,6 +10,7 @@ from pathlib import Path
 from datetime import datetime
 from dotenv import load_dotenv
 import sys
+import pandas as pd
 
 # Importar configuración
 from config import (
@@ -24,7 +25,8 @@ from config import (
     START_DATE,
     END_DATE,
     LOGGING_CONFIG,
-    INPUT_DIR
+    INPUT_DIR,
+    get_output_dir  # ✅ NUEVO: Función para obtener carpeta con fecha
 )
 
 # Importar módulos
@@ -34,17 +36,17 @@ from src.data_loader import (
     load_digital,
     load_historical_sales
 )
-from src.data_processor import (
-    TipificadorProcessor,
-    DigitalProcessor,
-    HistoricalSalesProcessor,
-    consolidate_monthly_report
-)
+# ⚠️ NOTA: src.data_processor no existe, comentando importación
+# from src.data_processor import (
+#     TipificadorProcessor,
+#     DigitalProcessor,
+#     HistoricalSalesProcessor,
+#     consolidate_monthly_report
+# )
 from src.file_generator import (
     generate_movistar_files,
     generate_internal_files,
-    generate_monthly_report,
-    generate_quality_reports
+    generate_monthly_report
 )
 from src.generators.contact_log_generator import ContactLogGenerator
 from src.eda import perform_eda
@@ -125,12 +127,16 @@ def main() -> int:
         etl_validator = None
         logger.warning("⚠️ Running without ETL validation")
     
+    # ✅ NUEVO: Crear carpeta de salida con fecha y rango
+    output_dir_with_date = get_output_dir()
+    
     # Banner
     logger.info("=" * 80)
     logger.info("🚀 MVP PROCESAMIENTO DE VENTAS MOVISTAR - VERSIÓN CSV OPTIMIZADA")
     logger.info("=" * 80)
-    logger.info(f"📅 Periodo: {START_DATE} → {END_DATE}")
-    logger.info(f"⏰ Inicio: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    logger.info(f"📅 Periodo de datos: {START_DATE.strftime('%d/%m/%Y')} → {END_DATE.strftime('%d/%m/%Y')}")
+    logger.info(f"📁 Carpeta de salida: {output_dir_with_date.name}")
+    logger.info(f"⏰ Inicio de ejecución: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     logger.info("=" * 80)
     
     # Cargar variables de entorno
@@ -296,30 +302,31 @@ def main() -> int:
         logger.info("📤 FASE 5: GENERACIÓN DE ARCHIVOS DE SALIDA")
         logger.info("=" * 80)
         
+        # ✅ USAR: Carpeta con fecha de generación
         # Generar archivos para Movistar
-        generate_movistar_files(df_ventas_periodo, OUTPUT_FILES, OUTPUT_DIR)
+        generate_movistar_files(df_ventas_periodo, OUTPUT_FILES, output_dir_with_date)
         
         # Generar archivos internos
         generate_internal_files(
             df_digital_periodo,
             df_ventas_periodo,
             OUTPUT_FILES,
-            OUTPUT_DIR
+            output_dir_with_date
         )
         
         # Generar reporte mensual
         generate_monthly_report(
             df_monthly_consolidated,
-            df_digital_processed_mes,
+            df_digital_periodo,
             OUTPUT_FILES,
-            OUTPUT_DIR
+            output_dir_with_date
         )
         
         # Generar Contact Log (nueva funcionalidad automatizada)
         logger.info("\n[4/4] Generando Contact Log...")
         try:
             contact_log_generator = ContactLogGenerator()
-            contact_log_path = OUTPUT_DIR / OUTPUT_FILES['movistar_contact_log']
+            contact_log_path = output_dir_with_date / OUTPUT_FILES['movistar_contact_log']
             
             success = contact_log_generator.generate(
                 df_ventas_periodo,
@@ -337,6 +344,36 @@ def main() -> int:
                 logger.warning("⚠️ Contact Log no pudo ser generado")
         except Exception as e:
             logger.error(f"❌ Error generando Contact Log: {e}", exc_info=True)
+        
+        # ✅ NEW: Generate novelty reports (invalid records for operations review)
+        logger.info("\n[5/5] Generando Reportes de Novedades...")
+        try:
+            from src.services.novelty_detector import NoveltyDetector
+            detector = NoveltyDetector()
+            
+            # Combine novelties from tipificador and digital
+            df_novedades_tip = metrics_tip.get('df_novedades', pd.DataFrame())
+            df_novedades_dig = metrics_dig.get('df_novedades', pd.DataFrame())
+            
+            total_novedades = len(df_novedades_tip) + len(df_novedades_dig)
+            
+            if total_novedades > 0:
+                # Generate separate reports
+                if not df_novedades_tip.empty:
+                    novelty_tip_path = output_dir_with_date / f"Tipificador_Novedades_{OUTPUT_FILES['date_range_short']}.xlsx"
+                    detector.generate_novelty_report(df_novedades_tip, str(novelty_tip_path))
+                
+                if not df_novedades_dig.empty:
+                    novelty_dig_path = output_dir_with_date / f"Digital_Novedades_{OUTPUT_FILES['date_range_short']}.xlsx"
+                    detector.generate_novelty_report(df_novedades_dig, str(novelty_dig_path))
+                
+                logger.info(f"✅ Reportes de novedades generados:")
+                logger.info(f"   ⚠️  Tipificador: {len(df_novedades_tip):,} novedades")
+                logger.info(f"   ⚠️  Digital: {len(df_novedades_dig):,} novedades")
+            else:
+                logger.info("✅ No hay novedades - todos los registros son válidos")
+        except Exception as e:
+            logger.error(f"❌ Error generando reportes de novedades: {e}", exc_info=True)
         
         # Consolidar todas las métricas
         all_metrics = {
@@ -388,16 +425,23 @@ def main() -> int:
         # ==========================================
         # RESUMEN FINAL
         # ==========================================
+        # Calculate novelties
+        total_novedades = len(metrics_tip.get('df_novedades', pd.DataFrame())) + len(metrics_dig.get('df_novedades', pd.DataFrame()))
+        
         logger.info("\n" + "=" * 80)
         logger.info("📊 RESUMEN DE EJECUCIÓN")
         logger.info("=" * 80)
         logger.info(f"✅ Ventas procesadas: {len(df_ventas_periodo):,}")
         logger.info(f"✅ Ventas digitales: {len(df_digital_periodo):,}")
+        logger.info(f"⚠️  Novedades detectadas: {total_novedades:,}")
         logger.info(f"✅ Referidos identificados: {len(df_referidos_mes):,}")
         logger.info(f"✅ Reporte mensual: {len(df_monthly_consolidated):,} ventas únicas")
         logger.info(f"✅ Contact Log: {contact_log_generator.records_processed:,} registros")
-        logger.info(f"📁 Archivos generados en: {OUTPUT_DIR}")
+        logger.info(f"📁 Archivos generados en: {output_dir_with_date}")
+        logger.info(f"📁 Ruta completa: {output_dir_with_date.absolute()}")
         logger.info(f"📊 Reportes EDA en: {PROCESSED_DIR}")
+        if total_novedades > 0:
+            logger.info(f"⚠️  Reportes de novedades en: {output_dir_with_date}")
         logger.info("=" * 80)
         logger.info(f"⏰ Fin: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         logger.info("=" * 80)

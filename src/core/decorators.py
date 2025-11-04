@@ -134,6 +134,8 @@ def timing(func: Callable) -> Callable:
 
 
 def log_execution(
+    func: Callable = None,
+    *,
     level: int = logging.INFO,
     include_args: bool = False,
     include_result: bool = False
@@ -141,7 +143,15 @@ def log_execution(
     """
     Decorator to log function execution.
     
+    Can be used with or without parentheses:
+        @log_execution
+        def foo(): pass
+        
+        @log_execution(level=logging.DEBUG)
+        def bar(): pass
+    
     Args:
+        func: Function to decorate (when used without parentheses)
         level: Logging level
         include_args: Log function arguments
         include_result: Log function result
@@ -151,11 +161,11 @@ def log_execution(
         >>> def process_data(data):
         ...     return data.upper()
     """
-    def decorator(func: Callable) -> Callable:
-        @functools.wraps(func)
+    def decorator(f: Callable) -> Callable:
+        @functools.wraps(f)
         def wrapper(*args, **kwargs) -> Any:
             # Log start
-            msg = f"🔄 Executing {func.__name__}"
+            msg = f"🔄 Executing {f.__name__}"
             
             if include_args:
                 args_repr = [repr(a) for a in args]
@@ -166,10 +176,10 @@ def log_execution(
             logger.log(level, msg)
             
             try:
-                result = func(*args, **kwargs)
+                result = f(*args, **kwargs)
                 
                 # Log success
-                success_msg = f"✅ {func.__name__} completed successfully"
+                success_msg = f"✅ {f.__name__} completed successfully"
                 if include_result:
                     success_msg += f" -> {result!r}"
                 
@@ -178,10 +188,16 @@ def log_execution(
                 return result
                 
             except Exception as e:
-                logger.error(f"❌ {func.__name__} raised {type(e).__name__}: {e}")
+                logger.error(f"❌ {f.__name__} raised {type(e).__name__}: {e}")
                 raise
         
         return wrapper
+    
+    # Called without parentheses
+    if func is not None:
+        return decorator(func)
+    
+    # Called with parentheses
     return decorator
 
 

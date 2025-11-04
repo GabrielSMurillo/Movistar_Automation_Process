@@ -24,6 +24,13 @@ from datetime import datetime
 
 from src.generators.base_generator import BaseGenerator, GeneratorRegistry
 
+# ✅ Import ServiceCodeMapper for CORRECT codes
+try:
+    from src.services.service_code_mapper import ServiceCodeMapper
+    SERVICE_MAPPER_AVAILABLE = True
+except ImportError:
+    SERVICE_MAPPER_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 
@@ -37,21 +44,23 @@ class SVASGenerator(BaseGenerator):
     """
     
     # Segment-specific configurations
+    # ⚠️ IMPORTANT: default_code should NOT be used - codes must come from ServiceCodeMapper
+    # These defaults are ONLY fallbacks when cod_bono is missing and ServiceCodeMapper unavailable
     SEGMENT_CONFIGS = {
         'DIG': {
             'name': 'Digital',
             'header_color': '#FFC000',  # Orange
-            'default_code': '4045'
+            'default_code': '4046'  # ✅ Default to MASCOTAS for digital
         },
         'FIJA': {
             'name': 'Fija',
             'header_color': '#4472C4',  # Blue
-            'default_code': '4046'
+            'default_code': '15639'  # ✅ Default to TU MASCOTA for fija
         },
         'MOV': {
             'name': 'Móvil',
             'header_color': '#70AD47',  # Green
-            'default_code': '4045'
+            'default_code': '3823'  # ✅ Default to TU MASCOTA for movil
         }
     }
     
@@ -139,6 +148,8 @@ class SVASGenerator(BaseGenerator):
         """
         Build records for SVAS file.
         
+        CRITICAL: Codigo_Bono must be correct for the segment and product type.
+        
         Args:
             df: Input DataFrame
             segment: Segment type
@@ -149,12 +160,38 @@ class SVASGenerator(BaseGenerator):
         records = []
         default_code = self.SEGMENT_CONFIGS[segment]['default_code']
         
+        # Map segment to tipo_linea
+        segment_to_tipo_linea = {
+            'DIG': 'DIGITAL',
+            'FIJA': 'FIJA',
+            'MOV': 'MOVIL'
+        }
+        tipo_linea = segment_to_tipo_linea.get(segment, 'MOVIL')
+        
         for _, row in df.iterrows():
             try:
+                # ✅ Get correct Codigo_Bono (this is actually the service code)
+                codigo_bono = row.get('cod_bono', None) or row.get('cod_servicio', None)
+                
+                # If not in row, use ServiceCodeMapper
+                if codigo_bono is None and SERVICE_MAPPER_AVAILABLE:
+                    mapper = ServiceCodeMapper()
+                    tipo_venta = str(row.get('tipo_venta', '') or row.get('programa', 'TU MASCOTA'))
+                    codigo_bono, _ = mapper.get_code(tipo_venta, tipo_linea)
+                    self.logger.debug(
+                        f"ServiceCodeMapper: {tipo_venta} + {tipo_linea} → {codigo_bono}"
+                    )
+                elif codigo_bono is None:
+                    # Final fallback
+                    codigo_bono = default_code
+                    self.logger.warning(
+                        f"⚠️ Using fallback code {codigo_bono} for {segment}"
+                    )
+                
                 record = {
                     'Num_Celular': row.get('telefono_limpio', ''),
                     'cod_plantarif': row.get('cod_plan', '6322'),  # Default from spec
-                    'Codigo_Bono': row.get('cod_bono', default_code),
+                    'Codigo_Bono': codigo_bono,
                     'Cod_ciclo': row.get('cod_ciclo', '20'),  # Default from spec
                     'EMPLEADO': row.get('es_empleado_movistar', 'No')
                 }

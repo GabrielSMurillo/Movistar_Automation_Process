@@ -25,6 +25,13 @@ except ImportError:
             return func
         return decorator
 
+# ✅ Import ServiceCodeMapper for CORRECT codes
+try:
+    from src.services.service_code_mapper import ServiceCodeMapper
+    SERVICE_MAPPER_AVAILABLE = True
+except ImportError:
+    SERVICE_MAPPER_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 
@@ -72,8 +79,18 @@ class MovistarFileGenerator:
             )
             
             # Campo Razón (estructura de nodos)
-            tipo_venta = row.get('tipo_venta', 'N/A')
-            cod_servicio = row.get('cod_servicio', '5002')  # Default según imagen
+            # ✅ Get correct service code from row (should already be assigned)
+            cod_servicio = row.get('cod_servicio', None)
+            
+            # If not assigned, use ServiceCodeMapper
+            if cod_servicio is None and SERVICE_MAPPER_AVAILABLE:
+                mapper = ServiceCodeMapper()
+                tipo_venta = str(row.get('tipo_venta', 'TU MASCOTA'))
+                tipo_linea = str(row.get('tipo_linea', 'MOVIL'))
+                cod_servicio, _ = mapper.get_code(tipo_venta, tipo_linea)
+            elif cod_servicio is None:
+                # Fallback
+                cod_servicio = '3823'  # TU MASCOTA MOVIL
             
             campo_razon = (
                 f"Activaciones Serv Suplementarios,Asistencias {cod_servicio}, "
@@ -163,17 +180,30 @@ class MovistarFileGenerator:
                 fecha_alta = str(row.get('fecha_venta', ''))
                 hora_venta = ''
             
-            # Determinar código de servicio según tipo
-            tipo_venta = str(row.get('tipo_venta', '')).upper()
-            if 'MASCOTA' in tipo_venta:
-                cod_servicio = '2119'
-                programa = 'TU MASCOTA'
-            elif 'VEHICULO' in tipo_venta or 'VEHÍCULO' in tipo_venta:
-                cod_servicio = '2120'
-                programa = 'TU VEHICULO'
+            # ✅ Determinar código de servicio usando ServiceCodeMapper
+            if SERVICE_MAPPER_AVAILABLE:
+                mapper = ServiceCodeMapper()
+                tipo_venta = str(row.get('tipo_venta', 'TU MASCOTA'))
+                tipo_linea = str(row.get('tipo_linea', 'MOVIL'))
+                cod_servicio, programa = mapper.get_code(tipo_venta, tipo_linea)
             else:
-                cod_servicio = '2119'
-                programa = 'TU MASCOTA'
+                # ❌ FALLBACK: Old method (MOVIL codes only)
+                tipo_venta = str(row.get('tipo_venta', '')).upper()
+                if 'MASCOTA' in tipo_venta:
+                    cod_servicio = '3823'  # ✅ CORRECTED
+                    programa = 'TU MASCOTA'
+                elif 'VEHICULO' in tipo_venta or 'VEHÍCULO' in tipo_venta:
+                    cod_servicio = '5002'  # ✅ CORRECTED
+                    programa = 'TU VEHICULO'
+                elif 'HOGAR' in tipo_venta:
+                    cod_servicio = '5000'  # ✅ CORRECTED
+                    programa = 'TU HOGAR'
+                elif 'BIENESTAR' in tipo_venta:
+                    cod_servicio = '2119'  # ✅ CORRECT
+                    programa = 'TU BIENESTAR'
+                else:
+                    cod_servicio = '3823'  # ✅ CORRECTED
+                    programa = 'TU MASCOTA'
             
             campo_observacion = (
                 f"Asesor de venta {row.get('nombre_asesor', '')}. "
@@ -329,17 +359,27 @@ class MovistarFileGenerator:
                 fecha_alta = str(row.get('fecha_venta', ''))
                 hora_venta = ''
             
-            # Determinar código de servicio
-            tipo_venta_raw = str(row.get('tipo_venta', '')).upper()
-            if 'MASCOTA' in tipo_venta_raw:
-                cod_servicio = '4045'
-                programa = 'Mascotas'
-            elif 'VEHICULO' in tipo_venta_raw or 'VEHÍCULO' in tipo_venta_raw:
-                cod_servicio = '4046'
-                programa = 'Vehiculo'
+            # ✅ Determinar código de servicio usando ServiceCodeMapper
+            if SERVICE_MAPPER_AVAILABLE:
+                mapper = ServiceCodeMapper()
+                tipo_venta = str(row.get('tipo_venta', '') or row.get('plan_desc', 'MASCOTAS'))
+                # Use the 'tipo' parameter to determine line type
+                cod_servicio, programa = mapper.get_code(tipo_venta, tipo)
             else:
-                cod_servicio = '4045'
-                programa = 'Mascotas'
+                # ❌ FALLBACK: Use digital codes as default
+                tipo_venta_raw = str(row.get('tipo_venta', '')).upper()
+                if 'VIAL' in tipo_venta_raw:
+                    cod_servicio = '4045'  # ✅ CORRECT
+                    programa = 'Vial'
+                elif 'MASCOTA' in tipo_venta_raw:
+                    cod_servicio = '4046'  # ✅ CORRECT
+                    programa = 'Mascotas'
+                elif 'MULTIASISTENCIA' in tipo_venta_raw or 'HOGAR' in tipo_venta_raw:
+                    cod_servicio = '4047'  # ✅ CORRECT
+                    programa = 'Multiasistencia'
+                else:
+                    cod_servicio = '4046'  # Default to MASCOTAS
+                    programa = 'Mascotas'
             
             asesor = tipo if tipo == 'Digital' else row.get('nombre_asesor', '')
             

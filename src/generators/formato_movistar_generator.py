@@ -25,6 +25,13 @@ from datetime import datetime
 
 from src.generators.base_generator import BaseGenerator, GeneratorRegistry
 
+# ✅ Import ServiceCodeMapper for CORRECT codes
+try:
+    from src.services.service_code_mapper import ServiceCodeMapper
+    SERVICE_MAPPER_AVAILABLE = True
+except ImportError:
+    SERVICE_MAPPER_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 
@@ -190,28 +197,50 @@ class FormatoMovistarGenerator(BaseGenerator):
         """
         Determine service code and program from sale type.
         
+        CRITICAL: Uses ServiceCodeMapper to get CORRECT codes based on line type.
+        Codes differ for MOVIL, FIJA, and DIGITAL.
+        
         Args:
-            row: Data row
+            row: Data row (must contain 'tipo_venta' and 'tipo_linea')
             
         Returns:
             Tuple of (cod_servicio, programa)
         """
-        tipo_venta = str(row.get('tipo_venta', '')).upper()
-        
-        # Service code mapping
-        if 'MASCOTA' in tipo_venta:
-            return ('2119', 'TU MASCOTA')
-        elif 'VEHICULO' in tipo_venta or 'VEHÍCULO' in tipo_venta:
-            return ('2120', 'TU VEHICULO')
-        elif 'HOGAR' in tipo_venta:
-            return ('2121', 'TU HOGAR')
-        elif 'BIENESTAR' in tipo_venta:
-            return ('2119', 'TU BIENESTAR')
-        elif 'VIAL' in tipo_venta:
-            return ('2119', 'VIAL')
+        if SERVICE_MAPPER_AVAILABLE:
+            # ✅ NEW: Use ServiceCodeMapper for CORRECT codes
+            mapper = ServiceCodeMapper()
+            tipo_venta = str(row.get('tipo_venta', 'TU MASCOTA'))
+            tipo_linea = str(row.get('tipo_linea', 'MOVIL'))
+            
+            code, program = mapper.get_code(tipo_venta, tipo_linea)
+            
+            self.logger.debug(
+                f"ServiceCodeMapper: {tipo_venta} + {tipo_linea} → {code} ({program})"
+            )
+            
+            return (code, program)
         else:
-            # Default to TU MASCOTA
-            return ('2119', 'TU MASCOTA')
+            # ❌ FALLBACK: Old hardcoded method (INCORRECT - doesn't differentiate MOVIL/FIJA)
+            self.logger.warning(
+                "⚠️ ServiceCodeMapper not available - using fallback codes (may be incorrect)"
+            )
+            
+            tipo_venta = str(row.get('tipo_venta', '')).upper()
+            
+            # These are MOVIL codes only!
+            if 'MASCOTA' in tipo_venta:
+                return ('3823', 'TU MASCOTA')
+            elif 'VEHICULO' in tipo_venta or 'VEHÍCULO' in tipo_venta:
+                return ('5002', 'TU VEHICULO')
+            elif 'HOGAR' in tipo_venta:
+                return ('5000', 'TU HOGAR')
+            elif 'BIENESTAR' in tipo_venta:
+                return ('2119', 'TU BIENESTAR')
+            elif 'VIAL' in tipo_venta:
+                return ('4045', 'VIAL')
+            else:
+                # Default to TU MASCOTA MOVIL
+                return ('3823', 'TU MASCOTA')
     
     def _build_observacion(
         self,

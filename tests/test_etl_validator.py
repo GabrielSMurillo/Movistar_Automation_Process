@@ -7,7 +7,7 @@ Validates ETL validation framework functionality.
 import pytest
 import pandas as pd
 from pathlib import Path
-from src.etl_validator import ETLValidator
+from src.etl_validator import ETLValidator, ValidationResult
 
 
 class TestETLValidator:

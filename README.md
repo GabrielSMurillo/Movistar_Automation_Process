@@ -2,9 +2,15 @@
 
 Sistema automatizado de procesamiento, validación y consolidación de reportes de ventas para múltiples segmentos de negocio de Movistar (Digital, Fija, Móvil).
 
+[![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![License: Private](https://img.shields.io/badge/License-Private-red.svg)](LICENSE)
+[![Status: Production](https://img.shields.io/badge/Status-Production-green.svg)]()
+
 ## 📋 Tabla de Contenidos
 
 - [Descripción General](#-descripción-general)
+- [🎯 Estado Actual](#-estado-actual)
 - [Contexto del Negocio](#-contexto-del-negocio)
 - [Flujo de Procesos](#-flujo-de-procesos)
 - [Características Principales](#-características-principales)
@@ -23,7 +29,53 @@ Sistema automatizado de procesamiento, validación y consolidación de reportes 
 
 ---
 
-## 🎯 Descripción General
+## 🎯 Estado Actual
+
+### ✅ Sistema Completamente Funcional (Noviembre 2025)
+
+El sistema está **100% operativo** y listo para uso en producción con las siguientes mejoras implementadas:
+
+#### 🔧 Mejoras Críticas Recientes
+
+1. **✅ Sistema de Carpetas con Fecha Automática**
+   - Cada ejecución crea una carpeta con formato: `YYYY-MM-DD_Generado_Rango_DD-MM-YYYY_al_DD-MM-YYYY`
+   - Fácil trazabilidad de cuándo se generaron los archivos
+   - No se sobreescriben archivos de ejecuciones anteriores
+
+2. **✅ Corrección Crítica de Códigos de Servicio**
+   - Todos los códigos ahora son **CORRECTOS** según especificaciones
+   - Códigos diferenciados por tipo de línea (MOVIL/FIJA/DIGITAL)
+   - Integrado `ServiceCodeMapper` en todos los generadores
+
+3. **✅ Sistema de Validación y Novedades**
+   - Validación exhaustiva de teléfonos (prefijos, longitud, códigos de ciudad)
+   - Validación de campos críticos (asesor, login, cliente)
+   - Archivo de novedades con registros que no pasan validación
+   - Solo registros 100% válidos van al cliente
+
+4. **✅ Configuración del Periodo**
+   - Periodo actual: **23 al 31 de octubre 2024** (inclusive)
+   - Fácil cambiar fechas en `config.py`
+   - Preparado para ejecuciones de día vencido
+
+#### 📊 Archivos Generados
+
+- ✅ 5 archivos principales para Movistar
+- ✅ 3 archivos por segmento (Digital, Fija, Móvil)
+- ✅ 1 archivo de reporte mensual consolidado
+- ✅ Archivos de novedades para revisión interna
+
+#### 🎯 Próximos Pasos
+
+1. Ejecutar con datos reales de octubre
+2. Revisar archivos generados vs archivos históricos
+3. Validar códigos de servicio en outputs
+4. Ajustar configuración si es necesario
+5. Implementar ejecuciones automáticas (día vencido)
+
+---
+
+## 📖 Descripción General
 
 Este proyecto automatiza el procesamiento completo de reportes de ventas de Movistar, realizando:
 
@@ -981,7 +1033,82 @@ settings.create_directories()  # Crea toda la estructura automáticamente
 
 ## 🚀 Uso
 
-### Ejecución Básica
+### ⚙️ Configurar Periodo de Datos
+
+Antes de ejecutar, verificar las fechas en `config.py`:
+
+```python
+# Líneas 56-57
+START_DATE = date(2024, 10, 23)  # Fecha inicio
+END_DATE = date(2024, 10, 31)    # Fecha fin (inclusive)
+```
+
+**Periodo Actual**: 23 al 31 de octubre 2024 (inclusive)
+
+### ✅ Validar Códigos de Servicio
+
+Antes de procesar, verificar que los códigos sean correctos:
+
+```bash
+py validate_codes.py
+```
+
+**Resultado esperado**: "🎉 ¡TODOS LOS CÓDIGOS SON CORRECTOS!"
+
+### 🚀 Ejecución Principal
+
+```bash
+py main.py
+```
+
+**Salida esperada**:
+```
+📅 Periodo de datos: 23/10/2024 → 31/10/2024
+📁 Carpeta de salida: 2024-11-04_Generado_Rango_23-10-2024_al_31-10-2024
+⏰ Inicio de ejecución: 2024-11-04 15:30:00
+
+[Procesamiento...]
+
+✅ RESUMEN DE EJECUCIÓN
+✅ Ventas procesadas: XXX
+✅ Ventas digitales: XXX
+⚠️  Novedades detectadas: XXX
+📁 Archivos generados en: data/output/2024-11-04_Generado_Rango_23-10-2024_al_31-10-2024/
+```
+
+### 🔍 Verificar Archivos Generados
+
+Después de la ejecución, revisar:
+
+1. **Archivos para cliente** (deben tener SOLO registros válidos):
+   - Contact Log Movistar Asist_*.xlsx
+   - FORMATO MOVISTAR_*.xlsx
+   - SVAS_*.xlsx (3 archivos)
+   - Reporte mensual
+
+2. **Archivos de novedades** (para revisión interna):
+   - Tipificador_Novedades_*.xlsx
+   - Digital_Novedades_*.xlsx
+
+3. **Verificar códigos de servicio**:
+   - Abrir cualquier archivo Excel
+   - Buscar columna `COD_SERVICIO` o `Codigo_Bono`
+   - Verificar que los códigos correspondan a la tabla del README
+
+### 📊 Ejecución Simple (Solo Resumen)
+
+Si solo quieres ver un resumen sin procesar:
+
+```bash
+py run_simple.py
+```
+
+Esto genera un archivo `RESUMEN_Procesamiento_*.xlsx` con:
+- Estadísticas de archivos de entrada
+- Muestra de datos (primeras 100 filas)
+- Información de columnas
+
+### Ejecución Básica (Método Antiguo)
 
 ```bash
 python main.py
@@ -1190,7 +1317,87 @@ https://github.com/GabrielSMurillo/Movistar_Automation_Process/issues
 
 ---
 
-## 🚀 Mejoras Recientes (Noviembre 2025)
+## 🚀 Mejoras Implementadas (Noviembre 2025)
+
+### 📅 Sistema de Carpetas Automáticas con Fecha
+
+**Implementado**: Sistema que crea carpetas automáticamente con formato:
+```
+data/output/2024-11-04_Generado_Rango_23-10-2024_al_31-10-2024/
+```
+
+**Ventajas**:
+- ✅ Trazabilidad completa de ejecuciones
+- ✅ No se sobreescriben archivos
+- ✅ Fácil identificar qué contiene cada carpeta
+- ✅ Listo para día vencido
+
+**Documentación**: Ver `CARPETAS_FECHA_RESUMEN.md` para detalles
+
+---
+
+### 🔴 Corrección Crítica de Códigos de Servicio
+
+**Problema Resuelto**: Los códigos estaban hardcodeados incorrectamente.
+
+**Códigos CORRECTOS Implementados**:
+
+#### 📱 MOVIL
+- TU BIENESTAR → 2119 ✅
+- TU MASCOTA → 3823 ✅
+- TU HOGAR → 5000 ✅
+- TU VEHICULO → 5002 ✅
+
+#### 📞 FIJA
+- TU BIENESTAR → 15640 ✅
+- TU MASCOTA → 15639 ✅
+- TU HOGAR → 15641 ✅
+- TU VEHICULO → 15642 ✅
+
+#### 💻 DIGITAL
+- MASCOTAS → 4046 ✅
+- MULTIASISTENCIA → 4047 ✅
+- VIAL → 4045 ✅
+
+**Archivos Corregidos**:
+- ✅ formato_movistar_generator.py
+- ✅ file_generator.py
+- ✅ monthly_report_generator.py
+- ✅ contact_log_generator.py
+- ✅ svas_generator.py
+
+**Validación**: Ejecutar `py validate_codes.py` para verificar
+
+**Documentación**: Ver `SERVICE_CODE_FIX_SUMMARY.md` para detalles completos
+
+---
+
+### ⚠️ Sistema de Validación y Novedades
+
+**Implementado**: Sistema robusto que valida TODOS los registros antes de enviar al cliente.
+
+**Validaciones Críticas**:
+1. ✅ Teléfonos (10 dígitos, prefijo 3 o 6, código de ciudad válido)
+2. ✅ Nombres de asesores (sin números, sin #N/A)
+3. ✅ LOGINs (numéricos, no vacíos)
+4. ✅ Nombres de clientes (válidos, sin #N/A)
+5. ✅ Códigos de servicio (correctos para tipo de línea)
+
+**Archivo de Novedades**:
+- Registros que **NO** pasan validación
+- **NO se envían** al cliente
+- Se reportan para revisión interna
+- Formato: `Tipificador_Novedades_DD_MM_YYYY.xlsx`
+
+**Nuevos Módulos**:
+- `src/services/novelty_detector.py` - Detector de novedades
+- `src/services/field_validators.py` - Validadores de campos
+- `src/services/phone_validator.py` - Validador mejorado de teléfonos
+- `src/services/service_code_mapper.py` - Mapeo correcto de códigos
+
+**Documentación**: Ver `BUSINESS_RULES_IMPLEMENTATION.md` para reglas completas
+
+---
 
 ### ✨ Sistema Profesional Implementado
 

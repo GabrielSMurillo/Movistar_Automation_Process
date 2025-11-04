@@ -52,14 +52,71 @@ except ImportError:
     LOGS_DIR = BASE_DIR / "logs"
     TRACKING_DIR = DATA_DIR / "tracking"
     
-    # Crear directorios (sistema antiguo)
-    for directory in [OUTPUT_DIR, PROCESSED_DIR, LOGS_DIR, TRACKING_DIR]:
-        directory.mkdir(parents=True, exist_ok=True)
-    START_DATE = date(2025, 10, 23)
-    END_DATE = YESTERDAY
-    DATE_RANGE_STR = f"{START_DATE.strftime('%d')}_Al_{END_DATE.strftime('%d')}_OCT_2025"
+    # ✅ ACTUALIZADO: Configurar fechas 23 al 31 de octubre
+    START_DATE = date(2024, 10, 23)  # Octubre 2024
+    END_DATE = date(2024, 10, 31)
+    DATE_RANGE_STR = f"{START_DATE.strftime('%d')}_Al_{END_DATE.strftime('%d')}_OCT_2024"
     DATE_RANGE_STR_SHORT = f"{START_DATE.strftime('%d')}_A_{END_DATE.strftime('%d')}_OCT"
+    
+    # Crear directorios (sistema antiguo)
+    for directory in [DATA_DIR, INPUT_DIR, PROCESSED_DIR, LOGS_DIR, TRACKING_DIR]:
+        directory.mkdir(parents=True, exist_ok=True)
 
+
+# ============================================================================
+# FUNCIÓN PARA CREAR CARPETA DE SALIDA CON FECHA Y RANGO
+# ============================================================================
+
+def create_output_folder_with_date() -> Path:
+    """
+    Crea carpeta de salida con formato:
+    output/YYYY-MM-DD_Generado_Rango_DD-MM-YYYY_al_DD-MM-YYYY/
+    
+    Ejemplo:
+    output/2024-11-04_Generado_Rango_23-10-2024_al_31-10-2024/
+    
+    Returns:
+        Path: Ruta a la carpeta creada
+    """
+    from datetime import datetime
+    
+    # Fecha de generación (hoy)
+    fecha_generacion = datetime.now().strftime('%Y-%m-%d')
+    
+    # Rango de datos procesados
+    fecha_inicio = START_DATE.strftime('%d-%m-%Y')
+    fecha_fin = END_DATE.strftime('%d-%m-%Y')
+    
+    # Nombre de carpeta
+    folder_name = f"{fecha_generacion}_Generado_Rango_{fecha_inicio}_al_{fecha_fin}"
+    
+    # Ruta completa
+    output_folder = DATA_DIR / "output" / folder_name
+    
+    # Crear carpeta
+    output_folder.mkdir(parents=True, exist_ok=True)
+    
+    return output_folder
+
+
+# Actualizar OUTPUT_DIR para usar carpeta con fecha
+# Se llama al inicio de la ejecución
+def get_output_dir() -> Path:
+    """
+    Obtiene el directorio de salida con fecha de generación.
+    
+    Si ya existe OUTPUT_DIR_WITH_DATE, lo retorna.
+    Si no, crea una nueva carpeta con la fecha actual.
+    """
+    global OUTPUT_DIR_WITH_DATE
+    
+    if 'OUTPUT_DIR_WITH_DATE' not in globals():
+        OUTPUT_DIR_WITH_DATE = create_output_folder_with_date()
+    
+    return OUTPUT_DIR_WITH_DATE
+
+
+# ============================================================================
 # --- Configuración de Archivos CSV (Google Sheets) ---
 CSV_READ_CONFIG: Dict[str, Any] = {
     'sep': ',',
@@ -70,18 +127,18 @@ CSV_READ_CONFIG: Dict[str, Any] = {
     'na_values': ['', 'N/A', 'NA', 'null', 'NULL', '#N/A', 'n/a'],
     'keep_default_na': True,
     'skipinitialspace': True,
-    'low_memory': False,
+    # low_memory no es compatible con engine='python', se omite
 }
 
 # --- Configuración de Archivos de Entrada ---
 TIPIFICADOR_CONFIG = {
-    'file_name': 'TIPIFICADOR DE VENTAS GENERAL.csv',
+    'file_name': '_TIPIFICADOR DE VENTAS GENERAL - MES ACTUAL.csv',
     'sheet_name': None,
     'skiprows': 0,
 }
 
 DIGITAL_CONFIG = {
-    'file_name': 'Reporte de ventas digitales MOVISTAR.csv',
+    'file_name': 'Reporte de ventas digitales MOVISTAR - Sheet1.csv',
     'sheet_name': None,
     'skiprows': 0,
 }
@@ -94,6 +151,10 @@ HISTORICAL_SALES_CONFIG = {
 
 # --- Nombres de Archivos de Salida ---
 OUTPUT_FILES = {
+    # Date range strings for file names
+    'date_range': DATE_RANGE_STR,
+    'date_range_short': DATE_RANGE_STR_SHORT,
+    
     # Archivos para Movistar (5)
     'movistar_contact_log': f'Contact Log Movistar Asist_{DATE_RANGE_STR}.xlsx',
     'movistar_general': f'FORMATO MOVISTAR_{DATE_RANGE_STR}.xlsx',

@@ -234,10 +234,13 @@ def filter_by_date_range(
     
     filtered_count = len(df_filtered)
     
+    # Evitar división por cero
+    retention_pct = (filtered_count/original_count*100) if original_count > 0 else 0.0
+    
     logger.info(
         f"📅 Filtrado por fechas [{start_date} - {end_date}]: "
         f"{original_count:,} → {filtered_count:,} registros "
-        f"({filtered_count/original_count*100:.1f}% retenido)"
+        f"({retention_pct:.1f}% retenido)"
     )
     
     return df_filtered

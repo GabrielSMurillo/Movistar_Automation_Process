@@ -22,6 +22,13 @@ import logging
 from typing import List, Dict, Optional
 from datetime import datetime
 
+# ✅ Import ServiceCodeMapper for CORRECT codes
+try:
+    from src.services.service_code_mapper import ServiceCodeMapper
+    SERVICE_MAPPER_AVAILABLE = True
+except ImportError:
+    SERVICE_MAPPER_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 
@@ -324,7 +331,7 @@ class ContactLogGenerator:
     
     def _build_razon(self, row: pd.Series) -> str:
         """
-        Construye Campo Razon (estructura de 3 nodos).
+        Construye el campo "Campo Razon" con formato de 3 nodos.
         
         Formato:
         "Activaciones Serv Suplementarios,Asistencias {cod_servicio}, ASISTENCIAS: Venta..."
@@ -335,8 +342,25 @@ class ContactLogGenerator:
         Returns:
             String con Campo Razon formateado (3 nodos separados por comas)
         """
-        # Obtener código de servicio (default: 2119 = TU MASCOTA)
-        cod_servicio = row.get('cod_servicio', '2119')
+        # ✅ Obtener código de servicio (should already be in row)
+        cod_servicio = row.get('cod_servicio', None)
+        
+        # If not present, use ServiceCodeMapper
+        if cod_servicio is None and SERVICE_MAPPER_AVAILABLE:
+            mapper = ServiceCodeMapper()
+            tipo_venta = str(row.get('tipo_venta', 'TU MASCOTA'))
+            tipo_linea = str(row.get('tipo_linea', 'MOVIL'))
+            cod_servicio, _ = mapper.get_code(tipo_venta, tipo_linea)
+            self.logger.debug(
+                f"ServiceCodeMapper: {tipo_venta} + {tipo_linea} → {cod_servicio}"
+            )
+        elif cod_servicio is None:
+            # Fallback: TU MASCOTA MOVIL
+            cod_servicio = '3823'
+            self.logger.warning(
+                "⚠️ cod_servicio not in row and ServiceCodeMapper unavailable, "
+                f"using fallback: {cod_servicio}"
+            )
         
         return self.RAZON_TEMPLATE.format(cod_servicio=cod_servicio)
     
