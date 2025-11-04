@@ -49,6 +49,14 @@ from src.file_generator import (
 from src.generators.contact_log_generator import ContactLogGenerator
 from src.eda import perform_eda
 
+# ✅ NEW: Import ETL validator for comprehensive validation
+try:
+    from src.etl_validator import ETLValidator
+    ETL_VALIDATOR_AVAILABLE = True
+except ImportError:
+    ETL_VALIDATOR_AVAILABLE = False
+    logging.warning("⚠️ ETL Validator not available - running without validation")
+
 
 def setup_logging() -> None:
     """Configura el sistema de logging."""
@@ -109,6 +117,14 @@ def main() -> int:
     setup_logging()
     logger = logging.getLogger(__name__)
     
+    # ✅ NEW: Initialize ETL validator
+    if ETL_VALIDATOR_AVAILABLE:
+        etl_validator = ETLValidator()
+        logger.info("✅ ETL Validator initialized - comprehensive validation enabled")
+    else:
+        etl_validator = None
+        logger.warning("⚠️ Running without ETL validation")
+    
     # Banner
     logger.info("=" * 80)
     logger.info("🚀 MVP PROCESAMIENTO DE VENTAS MOVISTAR - VERSIÓN CSV OPTIMIZADA")
@@ -143,6 +159,18 @@ def main() -> int:
         }
         tipificador_raw_df = load_tipificador(tipificador_config)
         
+        # ✅ NEW: Validate load
+        if etl_validator:
+            result = etl_validator.validate_load(
+                df=tipificador_raw_df,
+                file_name='Tipificador',
+                expected_columns=list(TIPIFICADOR_COLS_MAP.keys())[:5],  # Check first 5 columns
+                min_records=10
+            )
+            if not result.passed:
+                logger.error(f"❌ Tipificador load validation failed: {result.message}")
+                # Continue with warning (don't abort)
+        
         # Cargar Digital
         logger.info("\n[2/3] Cargando Ventas Digitales...")
         digital_config = {
@@ -150,6 +178,15 @@ def main() -> int:
             'file_path': INPUT_DIR / DIGITAL_CONFIG['file_name']
         }
         digital_raw_df = load_digital(digital_config)
+        
+        # ✅ NEW: Validate load
+        if etl_validator:
+            etl_validator.validate_load(
+                df=digital_raw_df,
+                file_name='Digital',
+                expected_columns=list(DIGITAL_COLS_MAP.keys())[:3],
+                min_records=5
+            )
         
         # Cargar Históricos
         logger.info("\n[3/3] Cargando Ventas Históricas...")
@@ -184,12 +221,26 @@ def main() -> int:
         
         # Procesar Tipificador
         logger.info("\n[1/4] Procesando Tipificador...")
+        
+        # Store counts before processing
+        tipificador_count_before = len(tipificador_raw_df)
+        
         df_ventas_mes, df_referidos_mes, metrics_tip = TipificadorProcessor.process(
             tipificador_raw_df,
             TIPIFICADOR_COLS_MAP,
             START_DATE,
             END_DATE
         )
+        
+        # ✅ NEW: Validate transformation
+        if etl_validator:
+            etl_validator.validate_transform(
+                df_before=tipificador_raw_df,
+                df_after=df_ventas_mes,
+                transform_name='tipificador_processing',
+                min_retention=50.0,  # Expect at least 50% retention
+                max_retention=100.0
+            )
         
         # Procesar Digital
         logger.info("\n[2/4] Procesando Ventas Digitales...")
@@ -306,6 +357,33 @@ def main() -> int:
         logger.info("⚠️ Reportes de calidad pendientes de implementación")
         
         logger.info("\n✅ Archivos de salida generados")
+        
+        # ==========================================
+        # ✅ NEW: VALIDATION REPORT
+        # ==========================================
+        if etl_validator:
+            logger.info("\n" + "=" * 80)
+            logger.info("📊 GENERANDO REPORTE DE VALIDACIÓN")
+            logger.info("=" * 80)
+            
+            # Check for critical issues
+            if etl_validator.has_critical_issues():
+                logger.error("🚨 CRITICAL VALIDATION ISSUES DETECTED!")
+                for check in etl_validator.get_failed_checks():
+                    if check.severity == 'CRITICAL':
+                        logger.error(f"  - {check.message}")
+            
+            # Export validation report
+            validation_report_path = PROCESSED_DIR / 'ETL_validation_report.xlsx'
+            etl_validator.export_report(validation_report_path)
+            
+            logger.info(f"✅ Validation report exported: {validation_report_path.name}")
+            
+            # Show summary
+            df_report = etl_validator.generate_etl_report()
+            passed = df_report['passed'].sum()
+            total = len(df_report)
+            logger.info(f"   Validations: {passed}/{total} passed")
         
         # ==========================================
         # RESUMEN FINAL
