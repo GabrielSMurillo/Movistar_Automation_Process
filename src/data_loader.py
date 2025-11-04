@@ -1,6 +1,7 @@
 # src/data_loader.py
 """
 Módulo de carga de datos optimizado para CSVs de Google Sheets.
+Ahora soporta CSV y Excel mediante InputAdapters.
 """
 
 import pandas as pd
@@ -10,6 +11,26 @@ import logging
 
 from config import CSV_READ_CONFIG
 from src.validators import DataQualityValidator
+from src.adapters import InputAdapterFactory, read_file
+
+# Importar decorators del nuevo sistema
+try:
+    from src.core.decorators import retry, timing, log_execution
+    from src.core.exceptions import FileNotFoundError as CustomFileNotFoundError
+    DECORATORS_AVAILABLE = True
+except ImportError:
+    # Fallback si no están disponibles
+    DECORATORS_AVAILABLE = False
+    def retry(*args, **kwargs):
+        def decorator(func):
+            return func
+        return decorator
+    def timing(func):
+        return func
+    def log_execution(*args, **kwargs):
+        def decorator(func):
+            return func
+        return decorator
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +39,8 @@ class CSVLoader:
     """Cargador optimizado para CSVs de Google Sheets."""
     
     @staticmethod
+    @retry(max_attempts=3, delay=1.0)
+    @timing
     def load_csv(
         file_path: Path,
         skiprows: int = 0,
@@ -25,6 +48,8 @@ class CSVLoader:
     ) -> pd.DataFrame:
         """
         Carga un archivo CSV con configuración optimizada para Google Sheets.
+        
+        Incluye retry automático y medición de performance.
         
         Args:
             file_path: Ruta al archivo CSV
@@ -111,12 +136,15 @@ class CSVLoader:
         return df
     
     @staticmethod
+    @timing
     def load_and_concatenate_csvs(
         directory: Path,
         pattern: str = "*.csv"
     ) -> pd.DataFrame:
         """
         Carga múltiples CSVs de un directorio y los concatena.
+        
+        Con medición de performance automática.
         
         Args:
             directory: Directorio con los archivos
@@ -170,17 +198,45 @@ class CSVLoader:
 
 
 def load_tipificador(config: dict) -> pd.DataFrame:
-    """Helper para cargar el tipificador."""
-    file_path = Path(config.get('file_path', INPUT_DIR / config['file_name']))
+    """
+    Helper para cargar el tipificador.
+    Ahora soporta CSV y Excel automáticamente.
+    """
+    file_path = Path(config['file_path'])
     skiprows = config.get('skiprows', 0)
-    return CSVLoader.load_csv(file_path, skiprows=skiprows)
+    
+    # Si es CSV, usar el método tradicional
+    if file_path.suffix.lower() == '.csv':
+        return CSVLoader.load_csv(file_path, skiprows=skiprows)
+    
+    # Si es Excel, usar InputAdapter
+    logger.info(f"📥 Cargando Tipificador (Excel): {file_path.name}")
+    adapter = InputAdapterFactory.create(file_path, skiprows=skiprows)
+    df = adapter.read()
+    df = CSVLoader._clean_dataframe(df)
+    logger.info(f"✅ Archivo cargado: {len(df):,} filas, {len(df.columns)} columnas")
+    return df
 
 
 def load_digital(config: dict) -> pd.DataFrame:
-    """Helper para cargar ventas digitales."""
-    file_path = Path(config.get('file_path', INPUT_DIR / config['file_name']))
+    """
+    Helper para cargar ventas digitales.
+    Ahora soporta CSV y Excel automáticamente.
+    """
+    file_path = Path(config['file_path'])
     skiprows = config.get('skiprows', 0)
-    return CSVLoader.load_csv(file_path, skiprows=skiprows)
+    
+    # Si es CSV, usar el método tradicional
+    if file_path.suffix.lower() == '.csv':
+        return CSVLoader.load_csv(file_path, skiprows=skiprows)
+    
+    # Si es Excel, usar InputAdapter
+    logger.info(f"📥 Cargando Digital (Excel): {file_path.name}")
+    adapter = InputAdapterFactory.create(file_path, skiprows=skiprows)
+    df = adapter.read()
+    df = CSVLoader._clean_dataframe(df)
+    logger.info(f"✅ Archivo cargado: {len(df):,} filas, {len(df.columns)} columnas")
+    return df
 
 
 def load_historical_sales(config: dict) -> pd.DataFrame:

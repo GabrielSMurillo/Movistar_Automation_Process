@@ -1,33 +1,64 @@
 # config.py
 """
 Configuración centralizada del pipeline de ventas Movistar.
-Versión mejorada con todos los mapeos y validaciones.
+Versión mejorada con integración del nuevo sistema de Settings.
+
+Este archivo mantiene compatibilidad hacia atrás mientras integra
+el nuevo sistema basado en Pydantic Settings.
 """
 
 from pathlib import Path
 from datetime import date, timedelta
 from typing import Dict, Any, List, Tuple
 
-# --- Rutas y Configuración General ---
-BASE_DIR = Path(__file__).parent.resolve()
-DATA_DIR = BASE_DIR / "data"
-INPUT_DIR = DATA_DIR / "input"
-OUTPUT_DIR = DATA_DIR / "output"
-PROCESSED_DIR = DATA_DIR / "processed"
-LOGS_DIR = BASE_DIR / "logs"
-TRACKING_DIR = DATA_DIR / "tracking"
+# ============================================================================
+# NUEVO SISTEMA DE CONFIGURACIÓN (Recomendado)
+# ============================================================================
 
-# Crear directorios
-for directory in [OUTPUT_DIR, PROCESSED_DIR, LOGS_DIR, TRACKING_DIR]:
-    directory.mkdir(parents=True, exist_ok=True)
-
-# --- Configuración del Período de Procesamiento ---
+# Variables de fecha (necesarias para logging y otros usos)
 TODAY = date.today()
 YESTERDAY = TODAY - timedelta(days=1)
-START_DATE = date(2025, 10, 23)
-END_DATE = YESTERDAY
-DATE_RANGE_STR = f"{START_DATE.strftime('%d')}_Al_{END_DATE.strftime('%d')}_OCT_2025"
-DATE_RANGE_STR_SHORT = f"{START_DATE.strftime('%d')}_A_{END_DATE.strftime('%d')}_OCT"
+
+try:
+    from src.core.config import get_settings
+    
+    # Obtener settings desde el nuevo sistema
+    _settings = get_settings()
+    
+    # Usar valores del nuevo sistema
+    BASE_DIR = _settings.base_dir
+    DATA_DIR = _settings.data_dir
+    INPUT_DIR = _settings.input_dir
+    OUTPUT_DIR = _settings.output_dir
+    PROCESSED_DIR = _settings.processed_dir
+    LOGS_DIR = _settings.logs_dir
+    TRACKING_DIR = _settings.tracking_dir
+    
+    START_DATE = _settings.start_date
+    END_DATE = _settings.end_date
+    DATE_RANGE_STR = _settings.date_range_str
+    DATE_RANGE_STR_SHORT = _settings.date_range_str_short
+    
+    # Crear directorios automáticamente
+    _settings.create_directories()
+    
+except ImportError:
+    # Fallback al sistema antiguo si el nuevo no está disponible
+    BASE_DIR = Path(__file__).parent.resolve()
+    DATA_DIR = BASE_DIR / "data"
+    INPUT_DIR = DATA_DIR / "input"
+    OUTPUT_DIR = DATA_DIR / "output"
+    PROCESSED_DIR = DATA_DIR / "processed"
+    LOGS_DIR = BASE_DIR / "logs"
+    TRACKING_DIR = DATA_DIR / "tracking"
+    
+    # Crear directorios (sistema antiguo)
+    for directory in [OUTPUT_DIR, PROCESSED_DIR, LOGS_DIR, TRACKING_DIR]:
+        directory.mkdir(parents=True, exist_ok=True)
+    START_DATE = date(2025, 10, 23)
+    END_DATE = YESTERDAY
+    DATE_RANGE_STR = f"{START_DATE.strftime('%d')}_Al_{END_DATE.strftime('%d')}_OCT_2025"
+    DATE_RANGE_STR_SHORT = f"{START_DATE.strftime('%d')}_A_{END_DATE.strftime('%d')}_OCT"
 
 # --- Configuración de Archivos CSV (Google Sheets) ---
 CSV_READ_CONFIG: Dict[str, Any] = {

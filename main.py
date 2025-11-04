@@ -46,6 +46,7 @@ from src.file_generator import (
     generate_monthly_report,
     generate_quality_reports
 )
+from src.generators.contact_log_generator import ContactLogGenerator
 from src.eda import perform_eda
 
 
@@ -263,6 +264,29 @@ def main() -> int:
             OUTPUT_DIR
         )
         
+        # Generar Contact Log (nueva funcionalidad automatizada)
+        logger.info("\n[4/4] Generando Contact Log...")
+        try:
+            contact_log_generator = ContactLogGenerator()
+            contact_log_path = OUTPUT_DIR / OUTPUT_FILES['movistar_contact_log']
+            
+            success = contact_log_generator.generate(
+                df_ventas_periodo,
+                contact_log_path,
+                validate=True
+            )
+            
+            if success:
+                logger.info(
+                    f"✅ Contact Log generado: {contact_log_path.name}\n"
+                    f"   Registros procesados: {contact_log_generator.records_processed:,}\n"
+                    f"   Registros omitidos: {contact_log_generator.records_skipped:,}"
+                )
+            else:
+                logger.warning("⚠️ Contact Log no pudo ser generado")
+        except Exception as e:
+            logger.error(f"❌ Error generando Contact Log: {e}", exc_info=True)
+        
         # Consolidar todas las métricas
         all_metrics = {
             'tipificador': metrics_tip,
@@ -278,7 +302,8 @@ def main() -> int:
         }
         
         # Generar reporte de calidad
-        generate_quality_reports(all_metrics, OUTPUT_DIR, OUTPUT_FILES)
+        # TODO: Implementar generate_quality_reports()
+        logger.info("⚠️ Reportes de calidad pendientes de implementación")
         
         logger.info("\n✅ Archivos de salida generados")
         
@@ -292,6 +317,7 @@ def main() -> int:
         logger.info(f"✅ Ventas digitales: {len(df_digital_periodo):,}")
         logger.info(f"✅ Referidos identificados: {len(df_referidos_mes):,}")
         logger.info(f"✅ Reporte mensual: {len(df_monthly_consolidated):,} ventas únicas")
+        logger.info(f"✅ Contact Log: {contact_log_generator.records_processed:,} registros")
         logger.info(f"📁 Archivos generados en: {OUTPUT_DIR}")
         logger.info(f"📊 Reportes EDA en: {PROCESSED_DIR}")
         logger.info("=" * 80)

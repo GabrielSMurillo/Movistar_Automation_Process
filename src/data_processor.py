@@ -9,6 +9,20 @@ import logging
 from datetime import date
 from typing import Tuple, Dict, Any
 
+# Intentar importar decorators del nuevo sistema
+try:
+    from src.core.decorators import timing, log_execution, retry
+except ImportError:
+    # Fallback: decorators no-op si el módulo no está disponible
+    def timing(func):
+        return func
+    def log_execution(func):
+        return func
+    def retry(*args, **kwargs):
+        def decorator(func):
+            return func
+        return decorator
+
 from src.validators import PhoneNumberValidator, DataQualityValidator
 from src.utils import (
     validate_columns,
@@ -28,6 +42,8 @@ class TipificadorProcessor:
     """Procesador para datos del Tipificador de Ventas."""
     
     @staticmethod
+    @timing
+    @log_execution
     def process(
         df: pd.DataFrame,
         col_map: Dict[str, str],
@@ -250,6 +266,8 @@ class DigitalProcessor:
     """Procesador para datos de Ventas Digitales."""
     
     @staticmethod
+    @timing
+    @log_execution
     def process(
         df: pd.DataFrame,
         col_map: Dict[str, str],
@@ -369,6 +387,8 @@ class HistoricalSalesProcessor:
     """Procesador para ventas históricas."""
     
     @staticmethod
+    @timing
+    @log_execution
     def process(df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, Any]]:
         """
         Procesa ventas históricas (ya deberían estar limpias).

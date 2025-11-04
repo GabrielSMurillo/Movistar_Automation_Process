@@ -9,6 +9,22 @@ import logging
 from typing import Dict
 from datetime import datetime
 
+# Intentar importar decorators del nuevo sistema
+try:
+    from src.core.decorators import timing, retry, validate_file_exists
+except ImportError:
+    # Fallback: decorators no-op si el módulo no está disponible
+    def timing(func):
+        return func
+    def retry(*args, **kwargs):
+        def decorator(func):
+            return func
+        return decorator
+    def validate_file_exists(*args, **kwargs):
+        def decorator(func):
+            return func
+        return decorator
+
 logger = logging.getLogger(__name__)
 
 
@@ -16,6 +32,8 @@ class MovistarFileGenerator:
     """Generador de archivos con formatos exactos de Movistar."""
     
     @staticmethod
+    @timing
+    @retry(max_attempts=3, delay=1.0)
     def generate_contact_log(
         df: pd.DataFrame,
         output_path: Path
@@ -98,6 +116,8 @@ class MovistarFileGenerator:
         logger.info(f"✅ Contact Log generado: {len(df_contact)} registros")
     
     @staticmethod
+    @timing
+    @retry(max_attempts=3, delay=1.0)
     def generate_formato_movistar(
         df: pd.DataFrame,
         output_path: Path
@@ -216,6 +236,8 @@ class MovistarFileGenerator:
         logger.info(f"✅ FORMATO MOVISTAR generado: {len(df_formato)} registros")
     
     @staticmethod
+    @timing
+    @retry(max_attempts=3, delay=1.0)
     def generate_svas(
         df: pd.DataFrame,
         tipo: str,  # 'DIG', 'FIJA', 'MOV'
@@ -276,6 +298,8 @@ class MovistarFileGenerator:
         logger.info(f"✅ SVAS {tipo} generado: {len(df_svas)} registros")
     
     @staticmethod
+    @timing
+    @retry(max_attempts=3, delay=1.0)
     def generate_formato_digital_fija_movil(
         df: pd.DataFrame,
         tipo: str,  # 'DIGITAL', 'FIJA', 'MOVIL'
@@ -386,6 +410,8 @@ class MovistarFileGenerator:
         logger.info(f"✅ FORMATO MOVISTAR_{tipo} generado: {len(df_formato)} registros")
     
     @staticmethod
+    @timing
+    @retry(max_attempts=3, delay=1.0)
     def generate_octubre_exitosas(
         df_consolidated: pd.DataFrame,
         df_digital: pd.DataFrame,
