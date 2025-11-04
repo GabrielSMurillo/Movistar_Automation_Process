@@ -23,7 +23,14 @@ except ImportError:
             return func
         return decorator
 
-from src.validators import PhoneNumberValidator, DataQualityValidator
+from src.validators import PhoneNumberValidator, DataQualityValidator  # ❌ OLD
+# ✅ NEW: Use enhanced phone validator
+try:
+    from src.services.phone_validator import EnhancedPhoneValidator
+    ENHANCED_PHONE_VALIDATOR_AVAILABLE = True
+except ImportError:
+    ENHANCED_PHONE_VALIDATOR_AVAILABLE = False
+    logger.warning("⚠️ EnhancedPhoneValidator not available, using old PhoneNumberValidator")
 from src.utils import (
     validate_columns,
     extract_datetime_components,
@@ -33,7 +40,14 @@ from src.utils import (
     detect_referidos,
     generate_summary_stats
 )
-from config import get_service_code
+# ✅ NEW: Use correct service code mapper
+try:
+    from src.services.service_code_mapper import ServiceCodeMapper
+    SERVICE_MAPPER_AVAILABLE = True
+except ImportError:
+    from config import get_service_code
+    SERVICE_MAPPER_AVAILABLE = False
+    logger.warning("⚠️ ServiceCodeMapper not available, using old get_service_code()")
 
 logger = logging.getLogger(__name__)
 
@@ -90,24 +104,59 @@ class TipificadorProcessor:
         
         # 4. Limpiar y validar teléfonos
         logger.info("📞 Limpiando números telefónicos...")
-        cleaned_phones, phone_metadata = PhoneNumberValidator.clean_series(
-            df['telefono_servicio'],
-            return_metadata=True
-        )
         
-        df['telefono_limpio'] = cleaned_phones
-        df['tipo_linea'] = phone_metadata['tipo_linea']
-        df['telefono_valido'] = phone_metadata['es_valido']
-        df['telefono_tiene_indicativo'] = phone_metadata['tiene_indicativo']
+        if ENHANCED_PHONE_VALIDATOR_AVAILABLE:
+            # ✅ NEW: Use EnhancedPhoneValidator (handles 957 prefix, complete validation)
+            validator = EnhancedPhoneValidator()
+            cleaned_phones, phone_metadata = validator.validate_series(df['telefono_servicio'])
+            
+            df['telefono_limpio'] = cleaned_phones
+            df['tipo_linea'] = phone_metadata['tipo_linea']
+            df['telefono_valido'] = phone_metadata['es_valido']
+            df['telefono_tiene_indicativo'] = phone_metadata['tiene_indicativo']
+            
+            logger.info("✅ Using EnhancedPhoneValidator (handles 957 prefix, validates prefixes)")
+        else:
+            # ❌ FALLBACK: Old validator (incomplete)
+            cleaned_phones, phone_metadata = PhoneNumberValidator.clean_series(
+                df['telefono_servicio'],
+                return_metadata=True
+            )
+            
+            df['telefono_limpio'] = cleaned_phones
+            df['tipo_linea'] = phone_metadata['tipo_linea']
+            df['telefono_valido'] = phone_metadata['es_valido']
+            df['telefono_tiene_indicativo'] = phone_metadata['tiene_indicativo']
+            
+            logger.warning("⚠️ Using old PhoneNumberValidator (doesn't handle 957 prefix)")
         
         # 5. Determinar código de servicio y programa
         logger.info("🏷️  Asignando códigos de servicio...")
-        service_info = df['tipo_venta'].apply(
-            lambda x: get_service_code(x, es_digital=False)
-        )
         
-        df['cod_servicio'] = service_info.apply(lambda x: x[0])
-        df['programa'] = service_info.apply(lambda x: x[1])
+        if SERVICE_MAPPER_AVAILABLE:
+            # ✅ NEW: Use ServiceCodeMapper for CORRECT codes per line type
+            mapper = ServiceCodeMapper()
+            
+            # Vectorized assignment using apply
+            service_info = df.apply(
+                lambda row: mapper.get_code(row['tipo_venta'], row['tipo_linea']),
+                axis=1
+            )
+            
+            df['cod_servicio'] = service_info.apply(lambda x: x[0])
+            df['programa'] = service_info.apply(lambda x: x[1])
+            
+            logger.info("✅ Using ServiceCodeMapper (CORRECT codes per MOVIL/FIJA/DIGITAL)")
+        else:
+            # ❌ FALLBACK: Old method (doesn't differentiate MOVIL/FIJA)
+            service_info = df['tipo_venta'].apply(
+                lambda x: get_service_code(x, es_digital=False)
+            )
+            
+            df['cod_servicio'] = service_info.apply(lambda x: x[0])
+            df['programa'] = service_info.apply(lambda x: x[1])
+            
+            logger.warning("⚠️ Using old service codes - NOT differentiated by line type!")
         
         # 6. Eliminar registros inválidos
         df_valid = df[
@@ -302,28 +351,61 @@ class DigitalProcessor:
         
         # 4. Limpiar teléfonos
         logger.info("📞 Limpiando números telefónicos...")
-        cleaned_phones, phone_metadata = PhoneNumberValidator.clean_series(
-            df['telefono_servicio'],
-            return_metadata=True
-        )
         
-        df['telefono_limpio'] = cleaned_phones
-        df['tipo_linea'] = phone_metadata['tipo_linea']
+        if ENHANCED_PHONE_VALIDATOR_AVAILABLE:
+            # ✅ NEW: Use EnhancedPhoneValidator
+            validator = EnhancedPhoneValidator()
+            cleaned_phones, phone_metadata = validator.validate_series(df['telefono_servicio'])
+            
+            df['telefono_limpio'] = cleaned_phones
+            df['tipo_linea'] = phone_metadata['tipo_linea']
+            
+            logger.info("✅ Using EnhancedPhoneValidator for digital sales")
+        else:
+            # ❌ FALLBACK: Old validator
+            cleaned_phones, phone_metadata = PhoneNumberValidator.clean_series(
+                df['telefono_servicio'],
+                return_metadata=True
+            )
+            
+            df['telefono_limpio'] = cleaned_phones
+            df['tipo_linea'] = phone_metadata['tipo_linea']
+            
+            logger.warning("⚠️ Using old PhoneNumberValidator for digital")
         
         # 5. Determinar código de servicio (versión digital)
         logger.info("🏷️  Asignando códigos de servicio (digital)...")
         
-        # Para digital, usar el plan_desc o un default
-        if 'plan_desc' in df.columns:
-            service_info = df['plan_desc'].apply(
-                lambda x: get_service_code(x, es_digital=True)
-            )
+        # Para digital, usar ServiceCodeMapper con tipo_linea='DIGITAL'
+        if SERVICE_MAPPER_AVAILABLE:
+            # ✅ NEW: Use ServiceCodeMapper for digital sales
+            mapper = ServiceCodeMapper()
+            
+            if 'plan_desc' in df.columns:
+                service_info = df['plan_desc'].apply(
+                    lambda x: mapper.get_code(x, 'DIGITAL')
+                )
+            else:
+                # Default para digital (MASCOTAS)
+                service_info = pd.Series([('4046', 'Mascotas')] * len(df))
+            
+            df['cod_servicio'] = service_info.apply(lambda x: x[0])
+            df['programa'] = service_info.apply(lambda x: x[1])
+            
+            logger.info("✅ Using ServiceCodeMapper for DIGITAL sales")
         else:
-            # Default para digital
-            service_info = pd.Series([('4045', 'Mascotas')] * len(df))
-        
-        df['cod_servicio'] = service_info.apply(lambda x: x[0])
-        df['programa'] = service_info.apply(lambda x: x[1])
+            # ❌ FALLBACK: Old method
+            if 'plan_desc' in df.columns:
+                service_info = df['plan_desc'].apply(
+                    lambda x: get_service_code(x, es_digital=True)
+                )
+            else:
+                service_info = pd.Series([('4045', 'Mascotas')] * len(df))
+            
+            df['cod_servicio'] = service_info.apply(lambda x: x[0])
+            df['programa'] = service_info.apply(lambda x: x[1])
+            
+            logger.warning("⚠️ Using old digital service codes")
         
         # 6. Eliminar inválidos
         df_valid = df[
