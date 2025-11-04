@@ -907,11 +907,22 @@ pre-commit>=3.4.0      # Git hooks
 
 ## 📦 Instalación
 
-### 1. Clonar el repositorio
+### Opción 1: Usar en Cursor Online
+
+Puedes editar el proyecto directamente desde tu navegador:
+
+1. Ve a: https://github.com/GabrielSMurillo/Movistar_Automation_Process
+2. Cambia a la rama: `cursor/system-architecture-and-data-flow-optimization-37a0`
+3. O usa el link directo de Cursor: `vscode://cursor/github/GabrielSMurillo/Movistar_Automation_Process`
+
+### Opción 2: Clonar localmente
 
 ```bash
 git clone https://github.com/GabrielSMurillo/Movistar_Automation_Process.git
 cd Movistar_Automation_Process
+
+# Cambiar a la rama de desarrollo
+git checkout cursor/system-architecture-and-data-flow-optimization-37a0
 ```
 
 ### 2. Crear entorno virtual
