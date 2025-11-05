@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "Bash(find:*)",
+      "Bash(dir:*)",
+      "Bash(findstr:*)",
+      "Bash(cat:*)",
+      "Bash(python.exe:*)",
+      "Bash(py:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

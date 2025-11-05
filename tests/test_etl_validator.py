@@ -9,7 +9,6 @@ import pandas as pd
 from pathlib import Path
 from src.etl_validator import ETLValidator
 
-
 class TestETLValidator:
     """Test ETL validation functionality."""
     
@@ -216,6 +215,8 @@ class TestETLValidator:
     def test_has_critical_issues(self, sample_df):
         """Test critical issue detection."""
         # Add a critical issue
+        from src.etl_validator import ValidationResult
+        
         self.validator.validation_results.append(
             ValidationResult(
                 stage='TEST',
@@ -244,7 +245,6 @@ class TestETLValidator:
         
         assert len(failed) == 1
         assert failed[0].check_name == 'check2'
-
 
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])

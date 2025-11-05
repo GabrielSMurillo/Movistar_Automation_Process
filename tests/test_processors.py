@@ -9,7 +9,6 @@ from datetime import date
 from src.data_processor import TipificadorProcessor, DigitalProcessor
 from config import TIPIFICADOR_COLS_MAP
 
-
 class TestTipificadorProcessor:
     """Tests para TipificadorProcessor."""
     
@@ -53,7 +52,6 @@ class TestTipificadorProcessor:
         assert 'tipificador' in metrics
         assert 'ventas_procesadas' in metrics
         assert 'referidos' in metrics
-
 
 class TestDigitalProcessor:
     """Tests para DigitalProcessor."""

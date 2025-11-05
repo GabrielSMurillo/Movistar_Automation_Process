@@ -15,7 +15,6 @@ import sys
 import subprocess
 from pathlib import Path
 
-
 def run_tests(args=None):
     """Run pytest with specified arguments."""
     if args is None:
@@ -46,7 +45,7 @@ def run_tests(args=None):
     pytest_args.extend(args)
     
     print("=" * 80)
-    print("🧪 RUNNING MOVISTAR SYSTEM TESTS")
+    print("[EMOJI] RUNNING MOVISTAR SYSTEM TESTS")
     print("=" * 80)
     print(f"Command: {' '.join(pytest_args)}")
     print("=" * 80)
@@ -55,7 +54,6 @@ def run_tests(args=None):
     result = subprocess.run(pytest_args)
     
     return result.returncode
-
 
 if __name__ == '__main__':
     sys.exit(run_tests())

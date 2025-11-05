@@ -8,7 +8,6 @@ import pytest
 import pandas as pd
 from src.services.phone_validator import EnhancedPhoneValidator
 
-
 class TestEnhancedPhoneValidator:
     """Test enhanced phone validator functionality."""
     
@@ -170,8 +169,7 @@ class TestEnhancedPhoneValidator:
         
         # Check fourth (invalid)
         assert pd.isna(cleaned.iloc[3]) or cleaned.iloc[3] is None
-        assert metadata.iloc[3]['es_valido'] is False
-
+        assert metadata.iloc[3]['es_valido'] == False
 
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])

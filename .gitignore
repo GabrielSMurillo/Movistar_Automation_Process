@@ -82,6 +82,11 @@ Desktop.ini
 # Temporary Python files
 *.tmp
 .temp/
+
+# Archive folder (archivos obsoletos)
+archive_obsoleto/
+
+# Temporary Python files
 *.so
 .Python
 build/

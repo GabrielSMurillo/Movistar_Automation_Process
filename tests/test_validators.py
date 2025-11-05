@@ -7,7 +7,6 @@ import pytest
 import pandas as pd
 from src.validators import PhoneNumberValidator, DataQualityValidator
 
-
 class TestPhoneNumberValidator:
     """Tests para PhoneNumberValidator."""
     
@@ -77,7 +76,6 @@ class TestPhoneNumberValidator:
         assert cleaned[2] == '6012345678'
         assert pd.isna(cleaned[3])
         assert pd.isna(cleaned[4])
-
 
 class TestDataQualityValidator:
     """Tests para DataQualityValidator."""

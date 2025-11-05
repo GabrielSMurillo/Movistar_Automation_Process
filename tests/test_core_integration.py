@@ -12,7 +12,6 @@ import sys
 # Asegurar que src está en el path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-
 class TestCoreConfig:
     """Tests para el nuevo sistema de configuración."""
     
@@ -49,7 +48,6 @@ class TestCoreConfig:
         assert isinstance(settings.start_date, date)
         assert isinstance(settings.end_date, date)
 
-
 class TestCoreExceptions:
     """Tests para custom exceptions."""
     
@@ -74,7 +72,6 @@ class TestCoreExceptions:
             raise ConfigurationError("Invalid config")
         
         assert "Invalid config" in str(exc_info.value)
-
 
 class TestCoreModels:
     """Tests para domain models."""
@@ -132,7 +129,6 @@ class TestCoreModels:
                 nombre_asesor="Maria123"  # Contiene números
             )
 
-
 class TestCoreDecorators:
     """Tests para decorators."""
     
@@ -177,7 +173,6 @@ class TestCoreDecorators:
         assert result == "success"
         assert counter["calls"] == 2
 
-
 class TestBackwardCompatibility:
     """Tests para verificar compatibilidad hacia atrás."""
     
@@ -195,7 +190,6 @@ class TestBackwardCompatibility:
         # Verificar tipos
         assert isinstance(config.BASE_DIR, Path)
         assert isinstance(config.START_DATE, date)
-
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--tb=short"])

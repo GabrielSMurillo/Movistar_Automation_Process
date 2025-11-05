@@ -12,6 +12,39 @@ from datetime import date, timedelta
 from typing import Dict, Any, List, Tuple
 
 # ============================================================================
+# FUNCIONES PARA FECHAS A DÍA VENCIDO (Procesa mes anterior)
+# ============================================================================
+
+def get_previous_month_dates() -> tuple[date, date]:
+    """
+    Obtiene el primer y último día del mes anterior.
+    
+    Sistema diseñado para ejecutarse a día vencido:
+    - Si hoy es 5 de febrero, procesa todo enero (1 al 31 de enero)
+    - Si hoy es 1 de marzo, procesa todo febrero (1 al 28/29 de febrero)
+    
+    Returns:
+        tuple[date, date]: (primer_dia_mes_anterior, ultimo_dia_mes_anterior)
+    
+    Example:
+        >>> # Si hoy es 5 de febrero 2025
+        >>> get_previous_month_dates()
+        (date(2025, 1, 1), date(2025, 1, 31))
+    """
+    today = date.today()
+    
+    # Primer día del mes actual
+    first_day_current_month = today.replace(day=1)
+    
+    # Último día del mes anterior (restar 1 día al primer día del mes actual)
+    last_day_previous_month = first_day_current_month - timedelta(days=1)
+    
+    # Primer día del mes anterior
+    first_day_previous_month = last_day_previous_month.replace(day=1)
+    
+    return first_day_previous_month, last_day_previous_month
+
+# ============================================================================
 # NUEVO SISTEMA DE CONFIGURACIÓN (Recomendado)
 # ============================================================================
 
@@ -55,10 +88,12 @@ except ImportError:
     # Crear directorios (sistema antiguo)
     for directory in [OUTPUT_DIR, PROCESSED_DIR, LOGS_DIR, TRACKING_DIR]:
         directory.mkdir(parents=True, exist_ok=True)
-    START_DATE = date(2025, 10, 23)
-    END_DATE = YESTERDAY
-    DATE_RANGE_STR = f"{START_DATE.strftime('%d')}_Al_{END_DATE.strftime('%d')}_OCT_2025"
-    DATE_RANGE_STR_SHORT = f"{START_DATE.strftime('%d')}_A_{END_DATE.strftime('%d')}_OCT"
+    
+    # Obtener fechas del mes anterior automáticamente
+    START_DATE, END_DATE = get_previous_month_dates()
+    YESTERDAY = date.today() - timedelta(days=1)
+    DATE_RANGE_STR = f"{START_DATE.strftime('%d')}_Al_{END_DATE.strftime('%d')}_{END_DATE.strftime('%b').upper()}_{END_DATE.year}"
+    DATE_RANGE_STR_SHORT = f"{START_DATE.strftime('%d')}_A_{END_DATE.strftime('%d')}_{END_DATE.strftime('%b').upper()}"
 
 # --- Configuración de Archivos CSV (Google Sheets) ---
 CSV_READ_CONFIG: Dict[str, Any] = {
@@ -70,18 +105,18 @@ CSV_READ_CONFIG: Dict[str, Any] = {
     'na_values': ['', 'N/A', 'NA', 'null', 'NULL', '#N/A', 'n/a'],
     'keep_default_na': True,
     'skipinitialspace': True,
-    'low_memory': False,
+    # low_memory is not supported with engine='python'
 }
 
 # --- Configuración de Archivos de Entrada ---
 TIPIFICADOR_CONFIG = {
-    'file_name': 'TIPIFICADOR DE VENTAS GENERAL.csv',
+    'file_name': '_TIPIFICADOR DE VENTAS GENERAL - MES ACTUAL.csv',
     'sheet_name': None,
     'skiprows': 0,
 }
 
 DIGITAL_CONFIG = {
-    'file_name': 'Reporte de ventas digitales MOVISTAR.csv',
+    'file_name': 'Reporte de ventas digitales MOVISTAR - Sheet1.csv',
     'sheet_name': None,
     'skiprows': 0,
 }
@@ -108,6 +143,9 @@ OUTPUT_FILES = {
     
     # Reporte mensual (1)
     'monthly_exitosas': f'OCTUBRE_Exitosas_Movistar.xlsx',
+    
+    # Archivo de NOVEDADES (registros rechazados) (1)
+    'novedades': f'NOVEDADES_{DATE_RANGE_STR}.xlsx',
     
     # Reportes de control (4)
     'quality_report': f'QUALITY_REPORT_{DATE_RANGE_STR}.xlsx',
@@ -144,7 +182,7 @@ FIXED_LINE_CODES = {
 SERVICE_CODE_MAPPING = {
     'patterns': [
         # (palabras_clave, código_movistar, código_digital, programa_movistar, programa_digital)
-        # ⚠️ WARNING: These are MOVIL codes only! Does NOT differentiate MOVIL vs FIJA (CRITICAL BUG)
+        # [WARNING] WARNING: These are MOVIL codes only! Does NOT differentiate MOVIL vs FIJA (CRITICAL BUG)
         # FIXED: Changed from wrong codes (2119/2120/2121) to correct MOVIL codes
         (['MASCOTA', 'MASCOTAS', 'PET'], '3823', '4046', 'TU MASCOTA', 'Mascotas'),  # Was 2119 (WRONG!)
         (['VEHICULO', 'VEHÍCULO', 'AUTO', 'CARRO'], '5002', '4045', 'TU VEHICULO', 'Vial'),  # Was 2120 (WRONG!)
@@ -160,7 +198,7 @@ SERVICE_CODE_MAPPING = {
     }
 }
 
-# ⚠️⚠️⚠️ CRITICAL WARNING ⚠️⚠️⚠️
+# [WARNING][WARNING][WARNING] CRITICAL WARNING [WARNING][WARNING][WARNING]
 # This SERVICE_CODE_MAPPING is INCOMPLETE and should be DEPRECATED
 # It does NOT differentiate between MOVIL (mobile) and FIJA (landline)
 # 
@@ -181,21 +219,30 @@ TIPIFICADOR_COLS_MAP = {
     'BASE ASIGNADA': 'base_asignada',
     'Nombre del cliente': 'nombre_cliente',
     'TELEFONO DEL CLIENTE( DONDE SE VA CARGAR EL SERVICIO )': 'telefono_servicio',
+    'TELEFONO DEL CLIENTE (DONDE SE VA CARGAR EL SERVICIO)': 'telefono_servicio',
     'Teléfono del cliente( donde se va cargar el servicio )': 'telefono_servicio',
     'TIPO DE VENTA': 'tipo_venta',
+    'TIPO DE VENTA ': 'tipo_venta',  # Con espacio al final
     'Tipo de venta': 'tipo_venta',
     '¿LA VENTA PROVIENE DE UN REFERIDO?': 'es_referido',
     '¿La venta proviene de un referido?': 'es_referido',
     'TELEFONO DEL CLIENTE DONDE SE REALIZO LA VENTA (GRABACION)': 'telefono_grabacion',
     'Teléfono del cliente donde se realizó la venta (grabación)': 'telefono_grabacion',
     'Documento de identidad del cliente': 'documento_cliente',
+    'LOGIN': 'login',
+    'Correo electronico del cliente': 'email_cliente',
+    'Correo electrónico del cliente': 'email_cliente',
+    'OBSERVACION': 'observacion',
+    'Observación': 'observacion',
     'costo plan': 'costo_plan',
     'Costo plan': 'costo_plan',
     'Dirección del cliente': 'direccion_cliente',
     'DirecciÃ³n del cliente': 'direccion_cliente',
     'DIRECCIÓN DEL CLIENTE (En este espacio deben completar la dirección actual o la modificación de la misma)': 'direccion_cliente',
+    'DIRECCIÓN DEL CLIENTE': 'direccion_cliente',
     '¿El cliente es empleado de Movistar?': 'es_empleado_movistar',
     'SI LA VENTA ES VEHÍCULO, INGRESA LA PLACA': 'placa_vehiculo',
+    'Dirección de correo electrónico': 'email_asesor',
 }
 
 # --- Mapeo de Columnas de Digital ---
@@ -273,7 +320,6 @@ LOGGING_CONFIG = {
 # --- Archivo de Tracking de Duplicados ---
 DUPLICATE_TRACKING_FILE = TRACKING_DIR / 'sent_sales_tracking.json'
 
-
 # --- Funciones Helper ---
 def get_service_code(tipo_venta: str, es_digital: bool = False) -> Tuple[str, str]:
     """
@@ -307,3 +353,56 @@ def get_service_code(tipo_venta: str, es_digital: bool = False) -> Tuple[str, st
         return defaults['digital'], defaults['programa_digital']
     else:
         return defaults['movistar'], defaults['programa_movistar']
+
+# ============================================================================
+# FUNCIONES PARA CARPETAS CON FECHA Y RANGO
+# ============================================================================
+
+def create_output_folder_with_date() -> Path:
+    """
+    Crea carpeta de salida con formato:
+    output/YYYY-MM-DD_Ejecutado_Periodo_DD-MM-YYYY_al_DD-MM-YYYY/
+    
+    Ejemplo:
+    output/2025-02-05_Ejecutado_Periodo_01-01-2025_al_31-01-2025/
+    
+    La carpeta indica:
+    - Fecha de ejecución: 2025-02-05 (día que se ejecutó el script)
+    - Periodo procesado: 01-01-2025 al 31-01-2025 (datos procesados)
+    
+    Returns:
+        Path: Ruta a la carpeta creada
+    """
+    # Fecha de ejecución (hoy)
+    fecha_ejecucion = TODAY.strftime('%Y-%m-%d')
+    
+    # Periodo procesado
+    inicio = START_DATE.strftime('%d-%m-%Y')
+    fin = END_DATE.strftime('%d-%m-%Y')
+    
+    # Formato: YYYY-MM-DD_Ejecutado_Periodo_DD-MM-YYYY_al_DD-MM-YYYY
+    nombre_carpeta = f"{fecha_ejecucion}_Ejecutado_Periodo_{inicio}_al_{fin}"
+    carpeta_salida = OUTPUT_DIR / nombre_carpeta
+    
+    # Crear carpeta si no existe
+    carpeta_salida.mkdir(parents=True, exist_ok=True)
+    
+    return carpeta_salida
+
+# Variable global para cachear la carpeta
+_output_dir_cached = None
+
+def get_output_dir() -> Path:
+    """
+    Obtiene o crea la carpeta de salida con fecha.
+    Usa caché para evitar crear múltiples carpetas.
+    
+    Returns:
+        Path: Ruta a la carpeta de salida
+    """
+    global _output_dir_cached
+    
+    if _output_dir_cached is None:
+        _output_dir_cached = create_output_folder_with_date()
+    
+    return _output_dir_cached

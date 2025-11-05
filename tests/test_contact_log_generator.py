@@ -13,7 +13,6 @@ import shutil
 
 from src.generators.contact_log_generator import ContactLogGenerator
 
-
 class TestContactLogGenerator(unittest.TestCase):
     """Suite de tests para ContactLogGenerator."""
     
@@ -425,7 +424,6 @@ class TestContactLogGenerator(unittest.TestCase):
             "Teléfonos deberían coincidir"
         )
 
-
 class TestContactLogGeneratorEdgeCases(unittest.TestCase):
     """Tests de casos límite y edge cases."""
     
@@ -496,7 +494,6 @@ class TestContactLogGeneratorEdgeCases(unittest.TestCase):
         # Verificar que se guardó correctamente
         df = pd.read_excel(output_path)
         self.assertIn('José María', df.iloc[0, 1])
-
 
 if __name__ == '__main__':
     unittest.main()

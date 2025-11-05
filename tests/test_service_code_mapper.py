@@ -7,7 +7,6 @@ Validates that service codes are correct for each line type.
 import pytest
 from src.services.service_code_mapper import ServiceCodeMapper
 
-
 class TestServiceCodeMapper:
     """Test service code mapping functionality."""
     
@@ -142,7 +141,6 @@ class TestServiceCodeMapper:
         assert len(all_codes['MOVIL']) == 4
         assert len(all_codes['FIJA']) == 4
         assert len(all_codes['DIGITAL']) == 3
-
 
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])
