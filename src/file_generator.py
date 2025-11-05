@@ -32,7 +32,34 @@ try:
 except ImportError:
     SERVICE_MAPPER_AVAILABLE = False
 
+# ✅ Import Excel sanitizer for security
+try:
+    from src.utils.excel_sanitizer import sanitize_for_excel
+    SANITIZER_AVAILABLE = True
+except ImportError:
+    SANITIZER_AVAILABLE = False
+    logging.warning("Excel sanitizer not available - formula injection protection disabled")
+
 logger = logging.getLogger(__name__)
+
+
+def _safe_to_excel(df: pd.DataFrame, writer, sheet_name: str, **kwargs) -> None:
+    """
+    Safely export DataFrame to Excel with formula injection protection.
+    
+    Args:
+        df: DataFrame to export
+        writer: ExcelWriter object
+        sheet_name: Name of sheet
+        **kwargs: Additional arguments for to_excel
+    """
+    # Sanitize data before export
+    if SANITIZER_AVAILABLE:
+        df_safe = sanitize_for_excel(df, inplace=False)
+    else:
+        df_safe = df
+    
+    df_safe.to_excel(writer, sheet_name=sheet_name, **kwargs)
 
 
 class MovistarFileGenerator:
@@ -107,7 +134,8 @@ class MovistarFileGenerator:
         
         # Guardar con formato específico
         with pd.ExcelWriter(output_path, engine='xlsxwriter') as writer:
-            df_contact.to_excel(writer, sheet_name='Sheet1', index=False)
+            # ✅ SECURITY: Use safe export with sanitization
+            _safe_to_excel(df_contact, writer, sheet_name='Sheet1', index=False)
             
             workbook = writer.book
             worksheet = writer.sheets['Sheet1']
@@ -241,7 +269,8 @@ class MovistarFileGenerator:
         
         # Guardar
         with pd.ExcelWriter(output_path, engine='xlsxwriter') as writer:
-            df_formato.to_excel(writer, sheet_name='Sheet1', index=False)
+            # ✅ SECURITY: Use safe export with sanitization
+            _safe_to_excel(df_formato, writer, sheet_name='Sheet1', index=False)
             
             workbook = writer.book
             worksheet = writer.sheets['Sheet1']
@@ -308,7 +337,8 @@ class MovistarFileGenerator:
         
         # Guardar
         with pd.ExcelWriter(output_path, engine='xlsxwriter') as writer:
-            df_svas.to_excel(writer, sheet_name='Sheet1', index=False)
+            # ✅ SECURITY: Use safe export with sanitization
+            _safe_to_excel(df_svas, writer, sheet_name='Sheet1', index=False)
             
             workbook = writer.book
             worksheet = writer.sheets['Sheet1']
@@ -419,7 +449,8 @@ class MovistarFileGenerator:
         
         # Guardar con formato
         with pd.ExcelWriter(output_path, engine='xlsxwriter') as writer:
-            df_formato.to_excel(writer, sheet_name='Sheet1', index=False)
+            # ✅ SECURITY: Use safe export with sanitization
+            _safe_to_excel(df_formato, writer, sheet_name='Sheet1', index=False)
             
             workbook = writer.book
             worksheet = writer.sheets['Sheet1']
@@ -544,7 +575,8 @@ class MovistarFileGenerator:
             workbook = writer.book
             
             for sheet_name, df_sheet in sheets.items():
-                df_sheet.to_excel(writer, sheet_name=sheet_name, index=False)
+                # ✅ SECURITY: Use safe export with sanitization
+                _safe_to_excel(df_sheet, writer, sheet_name=sheet_name, index=False)
                 worksheet = writer.sheets[sheet_name]
                 
                 # Encabezado verde (según imagen 4)

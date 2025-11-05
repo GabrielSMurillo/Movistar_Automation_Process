@@ -36,13 +36,13 @@ from src.data_loader import (
     load_digital,
     load_historical_sales
 )
-# ⚠️ NOTA: src.data_processor no existe, comentando importación
-# from src.data_processor import (
-#     TipificadorProcessor,
-#     DigitalProcessor,
-#     HistoricalSalesProcessor,
-#     consolidate_monthly_report
-# )
+# ✅ FIXED: Import from correct location
+from src.domain.processors import (
+    TipificadorProcessor,
+    DigitalProcessor,
+    HistoricalSalesProcessor,
+    consolidate_monthly_report
+)
 from src.file_generator import (
     generate_movistar_files,
     generate_internal_files,

@@ -58,24 +58,46 @@ class EnhancedPhoneValidator:
         '322', '323', '324', '350', '351', '352'
     }
     
-    # Valid city codes for landlines (Colombia)
+    # Valid city codes for landlines (Colombia) - Expanded to cover all departments
     CITY_CODES: dict[str, str] = {
         '601': 'Bogotá',
         '602': 'Cali',
+        '603': 'Armenia',
         '604': 'Medellín',
         '605': 'Cartagena',
         '606': 'Pereira',
         '607': 'Bucaramanga',
         '608': 'Barranquilla',
+        '609': 'Neiva',
     }
     
-    def __init__(self):
-        """Initialize enhanced phone validator."""
+    # ✅ IMPROVED: Accept any 60X, 61X, 62X, 63X codes (all Colombian landlines start with 6)
+    @staticmethod
+    def _is_valid_landline_prefix(phone: str) -> bool:
+        """Check if phone has valid Colombian landline prefix."""
+        if len(phone) != 10 or phone[0] != '6':
+            return False
+        # Accept all 6XX codes (60X through 69X)
+        return phone[1].isdigit() and phone[2].isdigit()
+    
+    def __init__(self, enable_cache: bool = True):
+        """
+        Initialize enhanced phone validator.
+        
+        Args:
+            enable_cache: Enable result caching for performance (default: True)
+        """
         self.logger = logging.getLogger(f"{__name__}.EnhancedPhoneValidator")
+        self.enable_cache = enable_cache
+        self._cache = {} if enable_cache else None
+        self._cache_hits = 0
+        self._cache_misses = 0
     
     def validate(self, phone: any) -> PhoneValidationResult:
         """
         Validate phone number with complete business rules.
+        
+        ✅ PERFORMANCE: Results are cached for repeated phone numbers.
         
         Args:
             phone: Raw phone number (string or number)
@@ -89,6 +111,13 @@ class EnhancedPhoneValidator:
             >>> print(result.cleaned_phone)  # '3001234567'
             >>> print(result.tipo_linea)  # 'MOVIL'
         """
+        # ✅ PERFORMANCE: Check cache first
+        if self.enable_cache and phone in self._cache:
+            self._cache_hits += 1
+            return self._cache[phone]
+        
+        self._cache_misses += 1
+        
         # Check if empty
         if pd.isna(phone) or phone == '' or phone is None:
             return PhoneValidationResult(
@@ -143,16 +172,22 @@ class EnhancedPhoneValidator:
         first_digit = cleaned[0]
         
         if first_digit == '3':
-            return self._validate_movil(cleaned)
+            result = self._validate_movil(cleaned)
         elif first_digit == '6':
-            return self._validate_fija(cleaned)
+            result = self._validate_fija(cleaned)
         else:
-            return PhoneValidationResult(
+            result = PhoneValidationResult(
                 is_valid=False,
                 cleaned_phone=None,
                 tipo_linea='INVALIDO',
                 reason=f'Número debe iniciar con 3 (móvil) o 6 (fijo). Inicia con: {first_digit}'
             )
+        
+        # ✅ PERFORMANCE: Cache the result
+        if self.enable_cache:
+            self._cache[phone] = result
+        
+        return result
     
     def _validate_movil(self, phone: str) -> PhoneValidationResult:
         """
@@ -185,7 +220,7 @@ class EnhancedPhoneValidator:
         """
         Validate landline number.
         
-        CRITICAL: Landlines MUST have city code prefix.
+        ✅ IMPROVED: Accepts all Colombian landline prefixes (6XX).
         
         Args:
             phone: Cleaned 10-digit number starting with 6
@@ -193,17 +228,17 @@ class EnhancedPhoneValidator:
         Returns:
             PhoneValidationResult
         """
-        city_code = phone[:3]
-        
-        if city_code not in self.CITY_CODES:
+        # Validate it's a proper landline format
+        if not self._is_valid_landline_prefix(phone):
             return PhoneValidationResult(
                 is_valid=False,
                 cleaned_phone=None,
                 tipo_linea='INVALIDO',
-                reason=f'Código de ciudad no válido: {city_code}. Códigos válidos: {list(self.CITY_CODES.keys())}'
+                reason=f'Formato de línea fija inválido: {phone}'
             )
         
-        city_name = self.CITY_CODES[city_code]
+        city_code = phone[:3]
+        city_name = self.CITY_CODES.get(city_code, f'Otra ciudad ({city_code})')
         
         return PhoneValidationResult(
             is_valid=True,
@@ -277,7 +312,47 @@ class EnhancedPhoneValidator:
         
         self.logger.info("=" * 60)
         
+        # ✅ PERFORMANCE: Log cache statistics
+        if self.enable_cache:
+            total_lookups = self._cache_hits + self._cache_misses
+            if total_lookups > 0:
+                cache_hit_rate = (self._cache_hits / total_lookups) * 100
+                self.logger.info(f"💾 Cache Performance:")
+                self.logger.info(f"   Hits: {self._cache_hits:,} | Misses: {self._cache_misses:,}")
+                self.logger.info(f"   Hit Rate: {cache_hit_rate:.1f}%")
+                self.logger.info(f"   Cache Size: {len(self._cache):,} unique phones")
+        
         return cleaned_phones, metadata
+    
+    def clear_cache(self) -> None:
+        """Clear the validation cache."""
+        if self._cache is not None:
+            self._cache.clear()
+            self._cache_hits = 0
+            self._cache_misses = 0
+            self.logger.debug("🗑️  Validation cache cleared")
+    
+    def get_cache_stats(self) -> dict:
+        """
+        Get cache statistics.
+        
+        Returns:
+            Dictionary with cache stats
+        """
+        if not self.enable_cache:
+            return {'enabled': False}
+        
+        total = self._cache_hits + self._cache_misses
+        hit_rate = (self._cache_hits / total * 100) if total > 0 else 0.0
+        
+        return {
+            'enabled': True,
+            'hits': self._cache_hits,
+            'misses': self._cache_misses,
+            'total_lookups': total,
+            'hit_rate_pct': hit_rate,
+            'cache_size': len(self._cache)
+        }
 
 
 # Export

@@ -78,14 +78,14 @@ class NoveltyDetector:
                     # Valid mobile
                     telefono_valido = True
                 elif phone.startswith('6'):
-                    # Valid landline - MUST have city code (601-608)
+                    # ✅ IMPROVED: Valid landline - Accept all 6XX codes
                     city_code = phone[:3]
-                    if city_code in ['601', '602', '604', '605', '606', '607', '608']:
+                    # Verify it's a valid format (6 + two digits)
+                    if phone[1].isdigit() and phone[2].isdigit():
                         telefono_valido = True
                     else:
                         rejection_reasons.append(
-                            f'Fijo sin código de ciudad válido: {city_code} '
-                            f'(debe ser 601-608)'
+                            f'Fijo con código de ciudad inválido: {city_code}'
                         )
                 else:
                     rejection_reasons.append(

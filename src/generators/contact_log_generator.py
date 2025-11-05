@@ -29,6 +29,14 @@ try:
 except ImportError:
     SERVICE_MAPPER_AVAILABLE = False
 
+# ✅ Import Excel sanitizer for security
+try:
+    from src.utils.excel_sanitizer import sanitize_list
+    SANITIZER_AVAILABLE = True
+except ImportError:
+    SANITIZER_AVAILABLE = False
+    logger.warning("Excel sanitizer not available - formula injection protection disabled")
+
 logger = logging.getLogger(__name__)
 
 
@@ -258,7 +266,13 @@ class ContactLogGenerator:
                 campo_razon = self._build_razon(row)
                 
                 # Agregar registro
-                records.append([linea, campo_observacion, campo_razon])
+                record = [linea, campo_observacion, campo_razon]
+                
+                # ✅ SECURITY: Sanitize record to prevent formula injection
+                if SANITIZER_AVAILABLE:
+                    record = sanitize_list([record])[0]
+                
+                records.append(record)
                 self.records_processed += 1
                 
             except Exception as e:
@@ -355,11 +369,18 @@ class ContactLogGenerator:
                 f"ServiceCodeMapper: {tipo_venta} + {tipo_linea} → {cod_servicio}"
             )
         elif cod_servicio is None:
-            # Fallback: TU MASCOTA MOVIL
-            cod_servicio = '3823'
+            # ✅ FIXED: Fallback based on line type
+            tipo_linea = row.get('tipo_linea', 'MOVIL')
+            if tipo_linea == 'FIJA':
+                cod_servicio = '15639'  # TU MASCOTA FIJA
+            elif tipo_linea == 'DIGITAL':
+                cod_servicio = '4046'   # MASCOTAS DIGITAL
+            else:
+                cod_servicio = '3823'   # TU MASCOTA MOVIL
+            
             self.logger.warning(
                 "⚠️ cod_servicio not in row and ServiceCodeMapper unavailable, "
-                f"using fallback: {cod_servicio}"
+                f"using fallback for {tipo_linea}: {cod_servicio}"
             )
         
         return self.RAZON_TEMPLATE.format(cod_servicio=cod_servicio)
