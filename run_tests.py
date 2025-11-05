@@ -45,7 +45,7 @@ def run_tests(args=None):
     pytest_args.extend(args)
     
     print("=" * 80)
-    print("[EMOJI] RUNNING MOVISTAR SYSTEM TESTS")
+    print("🧪 RUNNING MOVISTAR SYSTEM TESTS")
     print("=" * 80)
     print(f"Command: {' '.join(pytest_args)}")
     print("=" * 80)
