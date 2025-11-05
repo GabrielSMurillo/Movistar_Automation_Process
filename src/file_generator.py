@@ -320,17 +320,16 @@ class MovistarFileGenerator:
         """
         logger.info(f"📝 Generando SVAS {tipo}...")
         
-        # ✅ FIX: Map 'MOV' to 'MOVIL' for filtering
+        # ✅ FIX: Map file type abbreviations to actual tipo_linea values
         tipo_linea_map = {
             'DIG': 'DIGITAL',
             'FIJA': 'FIJA',
             'MOV': 'MOVIL'
         }
         
-        # Filtrar por tipo
-        if tipo != 'DIG':
-            tipo_linea = tipo_linea_map.get(tipo, tipo)
-            df = df[df['tipo_linea'] == tipo_linea].copy()
+        # ✅ FIX: ALL SVAS files should filter by tipo_linea (including DIG)
+        tipo_linea = tipo_linea_map.get(tipo, tipo)
+        df = df[df['tipo_linea'] == tipo_linea].copy()
         
         if df.empty:
             logger.warning(f"⚠️ No hay datos para SVAS {tipo}")
@@ -647,12 +646,9 @@ def generate_movistar_files(
     for tipo, file_key in [('DIG', 'movistar_svas_dig'),
                             ('FIJA', 'movistar_svas_fija'),
                             ('MOV', 'movistar_svas_mov')]:
-        # Filter by correct tipo_linea value
-        if tipo == 'DIG':
-            df_filtered = df_ventas  # DIG gets all data
-        else:
-            tipo_linea = tipo_map[tipo]
-            df_filtered = df_ventas[df_ventas['tipo_linea'] == tipo_linea].copy()
+        # ✅ FIX: ALL SVAS files should filter by tipo_linea
+        tipo_linea = tipo_map[tipo]
+        df_filtered = df_ventas[df_ventas['tipo_linea'] == tipo_linea].copy()
         
         gen.generate_svas(
             df_filtered,
