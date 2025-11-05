@@ -95,7 +95,13 @@ class MovistarFileGenerator:
             fecha_venta = row.get('fecha_venta', '')
             hora_venta = row.get('hora_venta', row.get('marca_temporal', ''))
             
-            if isinstance(hora_venta, str) and ' ' in hora_venta:
+            # ✅ FIX: Handle time objects properly
+            if hasattr(hora_venta, 'strftime'):
+                try:
+                    hora_venta = hora_venta.strftime('%H:%M:%S')
+                except:
+                    hora_venta = str(hora_venta) if hora_venta else ''
+            elif isinstance(hora_venta, str) and ' ' in hora_venta:
                 hora_venta = hora_venta.split(' ')[1] if len(hora_venta.split(' ')) > 1 else ''
             
             campo_observacion = (

@@ -334,6 +334,12 @@ class ContactLogGenerator:
                 hora = parts[1] if len(parts) > 1 else hora_venta
             else:
                 hora = hora_venta
+        elif hasattr(hora_venta, 'strftime'):
+            # ✅ FIX: Handle time objects (from dt.time)
+            try:
+                hora = hora_venta.strftime('%H:%M:%S')
+            except:
+                hora = str(hora_venta)
         else:
             hora = str(hora_venta)
         
