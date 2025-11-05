@@ -167,11 +167,12 @@ class TipificadorProcessor(BaseProcessor):
                 lambda x: processor.phone_validator.validate(x)
             )
             
+            # ✅ FIXED: Use correct attribute names from PhoneValidationResult
             df['telefono_limpio'] = phone_results.apply(
-                lambda r: r.cleaned_number if r.is_valid else None
+                lambda r: r.cleaned_phone if r.is_valid else None
             )
             df['tipo_linea'] = phone_results.apply(
-                lambda r: r.line_type if r.is_valid else 'INVALIDO'
+                lambda r: r.tipo_linea if r.is_valid else 'INVALIDO'
             )
             df['telefono_valido'] = phone_results.apply(lambda r: r.is_valid)
         
@@ -183,14 +184,16 @@ class TipificadorProcessor(BaseProcessor):
             asesor_results = df['nombre_asesor'].apply(
                 processor.field_validators.validate_asesor_name
             )
-            df['asesor_valido'] = asesor_results.apply(lambda r: r['is_valid'])
+            # ✅ FIXED: Validator returns tuple (bool, str), not dict
+            df['asesor_valido'] = asesor_results.apply(lambda r: r[0])
         
         # Login validation
         if 'login' in df.columns:
             login_results = df['login'].apply(
                 processor.field_validators.validate_login
             )
-            df['login_valido'] = login_results.apply(lambda r: r['is_valid'])
+            # ✅ FIXED: Validator returns tuple (bool, str), not dict
+            df['login_valido'] = login_results.apply(lambda r: r[0])
         
         # 6. ASSIGN SERVICE CODES
         logger.info("🏷️  Assigning service codes...")
@@ -309,11 +312,12 @@ class DigitalProcessor(BaseProcessor):
                 lambda x: processor.phone_validator.validate(x)
             )
             
+            # ✅ FIXED: Use correct attribute names
             df['telefono_limpio'] = phone_results.apply(
-                lambda r: r.cleaned_number if r.is_valid else None
+                lambda r: r.cleaned_phone if r.is_valid else None
             )
             df['tipo_linea'] = phone_results.apply(
-                lambda r: r.line_type if r.is_valid else 'DIGITAL'
+                lambda r: r.tipo_linea if r.is_valid else 'DIGITAL'
             )
             df['telefono_valido'] = phone_results.apply(lambda r: r.is_valid)
         

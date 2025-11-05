@@ -32,7 +32,34 @@ try:
 except ImportError:
     SERVICE_MAPPER_AVAILABLE = False
 
+# ✅ Import Excel sanitizer for security
+try:
+    from src.utils.excel_sanitizer import sanitize_for_excel
+    SANITIZER_AVAILABLE = True
+except ImportError:
+    SANITIZER_AVAILABLE = False
+    logging.warning("Excel sanitizer not available - formula injection protection disabled")
+
 logger = logging.getLogger(__name__)
+
+
+def _safe_to_excel(df: pd.DataFrame, writer, sheet_name: str, **kwargs) -> None:
+    """
+    Safely export DataFrame to Excel with formula injection protection.
+    
+    Args:
+        df: DataFrame to export
+        writer: ExcelWriter object
+        sheet_name: Name of sheet
+        **kwargs: Additional arguments for to_excel
+    """
+    # Sanitize data before export
+    if SANITIZER_AVAILABLE:
+        df_safe = sanitize_for_excel(df, inplace=False)
+    else:
+        df_safe = df
+    
+    df_safe.to_excel(writer, sheet_name=sheet_name, **kwargs)
 
 
 class MovistarFileGenerator:
@@ -68,7 +95,13 @@ class MovistarFileGenerator:
             fecha_venta = row.get('fecha_venta', '')
             hora_venta = row.get('hora_venta', row.get('marca_temporal', ''))
             
-            if isinstance(hora_venta, str) and ' ' in hora_venta:
+            # ✅ FIX: Handle time objects properly
+            if hasattr(hora_venta, 'strftime'):
+                try:
+                    hora_venta = hora_venta.strftime('%H:%M:%S')
+                except:
+                    hora_venta = str(hora_venta) if hora_venta else ''
+            elif isinstance(hora_venta, str) and ' ' in hora_venta:
                 hora_venta = hora_venta.split(' ')[1] if len(hora_venta.split(' ')) > 1 else ''
             
             campo_observacion = (
@@ -107,7 +140,8 @@ class MovistarFileGenerator:
         
         # Guardar con formato específico
         with pd.ExcelWriter(output_path, engine='xlsxwriter') as writer:
-            df_contact.to_excel(writer, sheet_name='Sheet1', index=False)
+            # ✅ SECURITY: Use safe export with sanitization
+            _safe_to_excel(df_contact, writer, sheet_name='Sheet1', index=False)
             
             workbook = writer.book
             worksheet = writer.sheets['Sheet1']
@@ -241,7 +275,8 @@ class MovistarFileGenerator:
         
         # Guardar
         with pd.ExcelWriter(output_path, engine='xlsxwriter') as writer:
-            df_formato.to_excel(writer, sheet_name='Sheet1', index=False)
+            # ✅ SECURITY: Use safe export with sanitization
+            _safe_to_excel(df_formato, writer, sheet_name='Sheet1', index=False)
             
             workbook = writer.book
             worksheet = writer.sheets['Sheet1']
@@ -285,9 +320,16 @@ class MovistarFileGenerator:
         """
         logger.info(f"📝 Generando SVAS {tipo}...")
         
-        # Filtrar por tipo
-        if tipo != 'DIG':
-            df = df[df['tipo_linea'] == tipo].copy()
+        # ✅ FIX: Map file type abbreviations to actual tipo_linea values
+        tipo_linea_map = {
+            'DIG': 'DIGITAL',
+            'FIJA': 'FIJA',
+            'MOV': 'MOVIL'
+        }
+        
+        # ✅ FIX: ALL SVAS files should filter by tipo_linea (including DIG)
+        tipo_linea = tipo_linea_map.get(tipo, tipo)
+        df = df[df['tipo_linea'] == tipo_linea].copy()
         
         if df.empty:
             logger.warning(f"⚠️ No hay datos para SVAS {tipo}")
@@ -308,7 +350,8 @@ class MovistarFileGenerator:
         
         # Guardar
         with pd.ExcelWriter(output_path, engine='xlsxwriter') as writer:
-            df_svas.to_excel(writer, sheet_name='Sheet1', index=False)
+            # ✅ SECURITY: Use safe export with sanitization
+            _safe_to_excel(df_svas, writer, sheet_name='Sheet1', index=False)
             
             workbook = writer.book
             worksheet = writer.sheets['Sheet1']
@@ -419,7 +462,8 @@ class MovistarFileGenerator:
         
         # Guardar con formato
         with pd.ExcelWriter(output_path, engine='xlsxwriter') as writer:
-            df_formato.to_excel(writer, sheet_name='Sheet1', index=False)
+            # ✅ SECURITY: Use safe export with sanitization
+            _safe_to_excel(df_formato, writer, sheet_name='Sheet1', index=False)
             
             workbook = writer.book
             worksheet = writer.sheets['Sheet1']
@@ -544,7 +588,8 @@ class MovistarFileGenerator:
             workbook = writer.book
             
             for sheet_name, df_sheet in sheets.items():
-                df_sheet.to_excel(writer, sheet_name=sheet_name, index=False)
+                # ✅ SECURITY: Use safe export with sanitization
+                _safe_to_excel(df_sheet, writer, sheet_name=sheet_name, index=False)
                 worksheet = writer.sheets[sheet_name]
                 
                 # Encabezado verde (según imagen 4)
@@ -595,11 +640,18 @@ def generate_movistar_files(
     )
     
     # 3-5. SVAS DIG/FIJA/MOV
+    # ✅ FIX: Map file types to correct tipo_linea values
+    tipo_map = {'DIG': 'DIGITAL', 'FIJA': 'FIJA', 'MOV': 'MOVIL'}
+    
     for tipo, file_key in [('DIG', 'movistar_svas_dig'),
                             ('FIJA', 'movistar_svas_fija'),
                             ('MOV', 'movistar_svas_mov')]:
+        # ✅ FIX: ALL SVAS files should filter by tipo_linea
+        tipo_linea = tipo_map[tipo]
+        df_filtered = df_ventas[df_ventas['tipo_linea'] == tipo_linea].copy()
+        
         gen.generate_svas(
-            df_ventas if tipo == 'DIG' else df_ventas[df_ventas['tipo_linea'] == tipo],
+            df_filtered,
             tipo,
             output_dir / output_files[file_key]
         )
